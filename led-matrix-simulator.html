@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>64x32 Matrix Simulator</title>
+<style>
+  :root{
+    --bezel:#0c0d10; --bezel-edge:#1c1f26; --board:#141821;
+    --ink:#c9d4e5; --ink-dim:#5f6b7e; --accent:#ff7a1a;
+    --ok:#3ddc84; --bad:#ff5c5c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(circle at 50% 30%, #171a22 0%, #0a0b0e 70%);
+    color:var(--ink);
+    font-family:"DM Mono",ui-monospace,"SF Mono",Menlo,monospace;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:24px;padding:32px 16px;
+  }
+  h1{font-size:12px;font-weight:500;letter-spacing:0.32em;
+     text-transform:uppercase;color:var(--ink-dim);}
+  h1 b{color:var(--accent);font-weight:500}
+  .panel-shell{
+    background:linear-gradient(160deg,var(--bezel-edge),var(--bezel));
+    padding:18px;border-radius:10px;
+    box-shadow:0 1px 0 rgba(255,255,255,0.05) inset,
+      0 30px 60px -20px rgba(0,0,0,0.9),0 0 0 1px #000;
+  }
+  .screen{position:relative;background:#050506;border-radius:3px;line-height:0;
+    box-shadow:0 0 0 2px #000 inset,0 0 24px rgba(0,0,0,0.8) inset;overflow:hidden;}
+  canvas{display:block;image-rendering:pixelated}
+  .screen::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(135deg,rgba(255,255,255,0.06) 0%,transparent 22%);}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;
+    align-items:center;max-width:640px;}
+  button,select,input[type=text]{
+    font-family:inherit;font-size:11px;letter-spacing:0.08em;color:var(--ink);
+    background:var(--board);border:1px solid #262c38;padding:9px 14px;
+    border-radius:6px;cursor:pointer;transition:border-color .15s,color .15s;}
+  input[type=text]{text-transform:none;letter-spacing:0;cursor:text;}
+  button{text-transform:uppercase}
+  button:hover,select:hover,input:focus{border-color:var(--accent);color:#fff;outline:none}
+  button:active{transform:translateY(1px)}
+  .toggle-on{border-color:var(--accent)!important;color:#fff!important}
+  label.field{display:flex;align-items:center;gap:8px;font-size:11px;
+    color:var(--ink-dim);letter-spacing:0.06em;}
+  .meta{font-size:10px;color:var(--ink-dim);letter-spacing:0.14em;
+    text-transform:uppercase;text-align:center;}
+  .meta span{color:var(--accent)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:var(--ink-dim);margin-right:5px;vertical-align:middle;}
+  .dot.live{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .dot.err{background:var(--bad)}
+  .tabs{display:flex;gap:6px}
+  .tabs button.active{border-color:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+  <h1>P3 - 64<b>x</b>32 - HUB75 Simulator</h1>
+  <div class="panel-shell">
+    <div class="screen"><canvas id="matrix"></canvas></div>
+  </div>
+  <div class="tabs">
+    <button id="tab-live" class="active">Live (WebSocket)</button>
+    <button id="tab-demo">Standalone demo</button>
+  </div>
+  <div class="controls" id="live-controls">
+    <label class="field">Connect to
+      <input type="text" id="wsurl" value="ws://localhost:8888" size="22">
+    </label>
+    <button id="connect">Connect</button>
+    <button id="grid" class="toggle-on">Pixel grid</button>
+    <select id="scale">
+      <option value="10">10x</option>
+      <option value="14" selected>14x</option>
+      <option value="18">18x</option>
+    </select>
+  </div>
+  <div class="controls" id="demo-controls" style="display:none">
+    <label class="field">City
+      <input type="text" id="city" value="Farmington" size="14">
+    </label>
+    <button id="load">Fetch</button>
+    <button id="grid2" class="toggle-on">Pixel grid</button>
+  </div>
+  <p class="meta">
+    <span class="dot" id="dot"></span><span id="status">idle</span>
+    &nbsp;-&nbsp; rows <span>32</span> - cols <span>64</span> - scan <span>1:16</span>
+  </p>
+<script>
+let COLS=64,ROWS=32,SCALE=14,showGrid=true;
+const canvas=document.getElementById('matrix');
+const ctx=canvas.getContext('2d');
+let fb=[];
+function clearFB(){fb=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>[0,0,0]));}
+function setPixel(x,y,r,g,b){if(x<0||x>=COLS||y<0||y>=ROWS)return;fb[y][x]=[r,g,b];}
+clearFB();
+function render(){
+  canvas.width=COLS*SCALE;canvas.height=ROWS*SCALE;
+  ctx.fillStyle='#050506';ctx.fillRect(0,0,canvas.width,canvas.height);
+  const r=SCALE*0.38;
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
+    const p=fb[y][x];const pr=p[0],pg=p[1],pb=p[2];
+    const cx=x*SCALE+SCALE/2,cy=y*SCALE+SCALE/2;
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='#0e0f13';ctx.fill();
+    if(pr||pg||pb){
+      const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,SCALE*0.9);
+      glow.addColorStop(0,'rgba('+pr+','+pg+','+pb+',0.55)');
+      glow.addColorStop(1,'rgba('+pr+','+pg+','+pb+',0)');
+      ctx.fillStyle=glow;ctx.fillRect(cx-SCALE,cy-SCALE,SCALE*2,SCALE*2);
+      ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle='rgb('+pr+','+pg+','+pb+')';ctx.fill();
+      ctx.beginPath();ctx.arc(cx-r*0.25,cy-r*0.25,r*0.35,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fill();
+    }
+  }
+  if(showGrid){
+    ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=1;
+    for(let x=0;x<=COLS;x++){ctx.beginPath();ctx.moveTo(x*SCALE,0);ctx.lineTo(x*SCALE,canvas.height);ctx.stroke();}
+    for(let y=0;y<=ROWS;y++){ctx.beginPath();ctx.moveTo(0,y*SCALE);ctx.lineTo(canvas.width,y*SCALE);ctx.stroke();}
+  }
+}
+function loadFrame(bytes,w,h){
+  if(w!==COLS||h!==ROWS){COLS=w;ROWS=h;}
+  clearFB();
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const i=(y*w+x)*3;fb[y][x]=[bytes[i],bytes[i+1],bytes[i+2]];
+  }
+  render();
+}
+function b64ToBytes(b64){
+  const bin=atob(b64),out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+  return out;
+}
+function setStatus(t,state){
+  document.getElementById('status').textContent=t;
+  const d=document.getElementById('dot');
+  d.className='dot'+(state==='live'?' live':state==='err'?' err':'');
+}
+let ws=null;
+function connect(){
+  const url=document.getElementById('wsurl').value.trim();
+  if(ws){try{ws.close();}catch(e){}ws=null;}
+  setStatus('connecting...');
+  try{ws=new WebSocket(url);}
+  catch(e){setStatus('bad url','err');return;}
+  ws.onopen=function(){setStatus('connected - waiting for frames','live');};
+  ws.onclose=function(){setStatus('disconnected','err');};
+  ws.onerror=function(){setStatus('connection failed','err');};
+  ws.onmessage=function(ev){
+    let msg;try{msg=JSON.parse(ev.data);}catch(e){return;}
+    if(msg.type==='hello'){COLS=msg.w;ROWS=msg.h;setStatus('connected - '+msg.w+'x'+msg.h,'live');}
+    else if(msg.type==='frame'){loadFrame(b64ToBytes(msg.data),msg.w,msg.h);setStatus('live - '+msg.w+'x'+msg.h,'live');}
+  };
+}
+document.getElementById('connect').onclick=connect;
+document.getElementById('wsurl').addEventListener('keydown',function(e){if(e.key==='Enter')connect();});
+document.getElementById('grid').onclick=function(e){showGrid=!showGrid;e.target.classList.toggle('toggle-on',showGrid);render();};
+document.getElementById('scale').onchange=function(e){SCALE=+e.target.value;render();};
+const FONT={'A':["010","101","111","101","101"],'B':["110","101","110","101","110"],'C':["011","100","100","100","011"],'D':["110","101","101","101","110"],'E':["111","100","110","100","111"],'F':["111","100","110","100","100"],'G':["011","100","101","101","011"],'H':["101","101","111","101","101"],'I':["111","010","010","010","111"],'J':["001","001","001","101","010"],'K':["101","110","100","110","101"],'L':["100","100","100","100","111"],'M':["101","111","111","101","101"],'N':["101","111","111","111","101"],'O':["010","101","101","101","010"],'P':["110","101","110","100","100"],'Q':["010","101","101","110","011"],'R':["110","101","110","101","101"],'S':["011","100","010","001","110"],'T':["111","010","010","010","010"],'U':["101","101","101","101","111"],'V':["101","101","101","101","010"],'W':["101","101","111","111","101"],'X':["101","101","010","101","101"],'Y':["101","101","010","010","010"],'Z':["111","001","010","100","111"],'0':["111","101","101","101","111"],'1':["010","110","010","010","111"],'2':["110","001","010","100","111"],'3':["110","001","010","001","110"],'4':["101","101","111","001","001"],'5':["111","100","110","001","110"],'6':["011","100","110","101","010"],'7':["111","001","010","010","010"],'8':["010","101","010","101","010"],'9':["010","101","011","001","110"],'.':["000","000","000","000","010"],'-':["000","000","111","000","000"],':':["000","010","000","010","000"],'%':["101","001","010","100","101"],' ':["000","000","000","000","000"]};
+function dText(str,x,y,r,g,b){let cx=x;const s=str.toUpperCase();for(let k=0;k<s.length;k++){const gl=FONT[s[k]]||FONT[' '];for(let ry=0;ry<5;ry++)for(let cxx=0;cxx<3;cxx++)if(gl[ry][cxx]==='1')setPixel(cx+cxx,y+ry,r,g,b);cx+=4;}}
+function tW(s){return s.length*4-1;}
+function cText(s,y,r,g,b){dText(s,Math.floor((COLS-tW(s))/2),y,r,g,b);}
+function sun(cx,cy){const y=[255,200,40];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)setPixel(cx+dx,cy+dy,y[0],y[1],y[2]);setPixel(cx,cy-3,y[0],y[1],y[2]);setPixel(cx,cy+3,y[0],y[1],y[2]);setPixel(cx-3,cy,y[0],y[1],y[2]);setPixel(cx+3,cy,y[0],y[1],y[2]);}
+function cloud(cx,cy,r,g,b){r=r||190;g=g||200;b=b||215;const px=[[0,0],[1,0],[2,0],[-1,1],[0,1],[1,1],[2,1],[3,1],[-1,2],[0,2],[1,2],[2,2],[3,2]];for(let k=0;k<px.length;k++)setPixel(cx+px[k][0],cy+px[k][1],r,g,b);}
+function rain(cx,cy){cloud(cx,cy,150,160,180);setPixel(cx,cy+3,80,140,255);setPixel(cx+2,cy+3,80,140,255);setPixel(cx+1,cy+4,80,140,255);}
+function wxf(code){if(code===0)return{i:sun,l:'CLEAR'};if(code<=2)return{i:function(x,y){sun(x-2,y-1);cloud(x,y+1);},l:'FAIR'};if(code===3)return{i:cloud,l:'CLOUDY'};if(code<=48)return{i:cloud,l:'FOG'};if(code<=82)return{i:rain,l:'RAIN'};return{i:cloud,l:'MIST'};}
+function demoScreen(d){clearFB();dText(d.city.toUpperCase().slice(0,10),1,1,255,150,40);const t=''+Math.round(d.tempF);dText(t,2,11,255,255,255);setPixel(2+tW(t)+1,11,255,255,255);dText('F',2+tW(t)+3,11,200,210,225);const w=wxf(d.code);w.i(50,14);cText(w.l,25,120,200,255);render();}
+function fetchWeather(city){
+  setStatus('locating...');
+  fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(city)+'&count=1').then(function(r){return r.json();}).then(function(g){
+    if(!g.results||!g.results.length){setStatus('not found','err');return;}
+    const p=g.results[0];
+    return fetch('https://api.open-meteo.com/v1/forecast?latitude='+p.latitude+'&longitude='+p.longitude+'&current=temperature_2m,weather_code&temperature_unit=fahrenheit&timezone=auto').then(function(r){return r.json();}).then(function(w){
+      demoScreen({city:p.name,tempF:w.current.temperature_2m,code:w.current.weather_code});
+      setStatus('demo - '+p.name.toLowerCase(),'live');
+    });
+  }).catch(function(e){setStatus('fetch error','err');});
+}
+document.getElementById('load').onclick=function(){fetchWeather(document.getElementById('city').value||'Farmington');};
+document.getElementById('city').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('load').click();});
+document.getElementById('grid2').onclick=function(e){showGrid=!showGrid;e.target.classList.toggle('toggle-on',showGrid);render();};
+const tabLive=document.getElementById('tab-live'),tabDemo=document.getElementById('tab-demo');
+tabLive.onclick=function(){tabLive.classList.add('active');tabDemo.classList.remove('active');document.getElementById('live-controls').style.display='flex';document.getElementById('demo-controls').style.display='none';};
+tabDemo.onclick=function(){tabDemo.classList.add('active');tabLive.classList.remove('active');document.getElementById('demo-controls').style.display='flex';document.getElementById('live-controls').style.display='none';if(ws){try{ws.close();}catch(e){}}fetchWeather('Farmington');};
+clearFB();cText('WEATHER',8,255,150,40);cText('MATRIX',16,200,210,225);render();
+setStatus('idle - connect or demo');
+</script>
+</body>
+</html>
