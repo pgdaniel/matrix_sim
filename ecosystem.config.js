@@ -15,10 +15,12 @@ module.exports = {
     {
       // Serves led-matrix-simulator.html (and the font it needs) so it's
       // reachable at http://<host>:8080/led-matrix-simulator.html instead
-      // of opening the file locally.
+      // of opening the file locally. Uses serve_view.py rather than plain
+      // `python3 -m http.server` — see that file for why.
       name: "matrix-view",
-      script: "python3",
-      args: "-m http.server 8080",
+      script: "serve_view.py",
+      interpreter: "python3",
+      args: "8080",
       cwd: __dirname,
       autorestart: true,
       watch: false,
