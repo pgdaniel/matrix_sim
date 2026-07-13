@@ -55,6 +55,8 @@ just adding another file plus one line in `main()`.
 
 - **`screens/weather.py`** — current temperature + condition icon, refetched
   every `--refresh-minutes`.
+- **`screens/weather_cyberpunk.py`** — same weather data, neon/scanline
+  theme (magenta cloud outlines, cyan accents, pink-cyan glow text).
 - **`screens/stocks.py`** — stub screen ("STOCKS" / "SOON"); replace
   `render()` with a real quote fetch later.
 

@@ -70,7 +70,7 @@ import tty
 
 import click
 
-from screens import ScreenManager, StocksScreen, WeatherScreen
+from screens import CyberpunkWeatherScreen, ScreenManager, StocksScreen, WeatherScreen
 
 
 def keyboard_listener(screens, stop_event):
@@ -168,6 +168,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
     screens = ScreenManager([
         WeatherScreen(latitude, longitude, refresh_minutes),
         StocksScreen(),
+        CyberpunkWeatherScreen(latitude, longitude, refresh_minutes),
     ])
     screens.start_all(stop_event)
 
