@@ -1,14 +1,15 @@
 # Matrix Display
 
-A 64x32 HUB75 LED matrix display driven by `weather_fetcher_pizero2w.py`. It
-cycles between a weather screen and a stocks screen (stub for now), and can
-render either to real hardware or to a browser for local development.
+A 64x32 HUB75 LED matrix display driven by `matrix_server.py`. It cycles
+between screens (weather, and a stocks stub), and can render either to real
+hardware or to a browser for local development.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `weather_fetcher_pizero2w.py` | Main script — fetches weather, builds frames, manages screens |
+| `matrix_server.py` | Main script — wires screens up to the matrix and to the screen-switching controls |
+| `screens/` | Each screen is self-contained here; see below |
 | `matrix_sim.py` | Drop-in stand-in for `rgbmatrix` that streams frames to a browser over WebSocket instead of a physical panel |
 | `led-matrix-simulator.html` | Browser page that renders the streamed frames as a virtual LED panel |
 | `LindenHill-webfont.ttf` | Pixel font used for on-panel text |
@@ -29,7 +30,7 @@ python3 -m venv .venv
 Simulate mode (no hardware, no sudo — streams frames to a browser instead):
 
 ```
-.venv/bin/python3 weather_fetcher_pizero2w.py --simulate --refresh-minutes 10
+.venv/bin/python3 matrix_server.py --simulate --refresh-minutes 10
 ```
 
 Then open `led-matrix-simulator.html` in a browser (or serve it, see
@@ -37,20 +38,25 @@ Then open `led-matrix-simulator.html` in a browser (or serve it, see
 
 On the real hardware (Pi Zero 2 W + rpi-rgb-led-matrix), drop `--simulate`
 and run with `sudo` (needs the `rgbmatrix` bindings installed separately —
-see the docstring at the top of `weather_fetcher_pizero2w.py`):
+see the docstring at the top of `matrix_server.py`):
 
 ```
-sudo python3 weather_fetcher_pizero2w.py
+sudo python3 matrix_server.py
 ```
 
 ## Screens
 
-There are two screens, cycled by `ScreenManager`:
+Each screen lives in its own file under `screens/`, implementing the
+`Screen` interface from `screens/base.py` (`render()`, and optionally
+`start()` to kick off background data refreshes). `ScreenManager`
+(`screens/manager.py`) tracks which one is active and cycles between
+whichever screens `matrix_server.py`'s `main()` lists — adding a screen is
+just adding another file plus one line in `main()`.
 
-- **weather** — current temperature + condition icon, refetched every
-  `--refresh-minutes`.
-- **stocks** — stub screen ("STOCKS" / "SOON"); replace `build_stocks_frame()`
-  with a real quote fetch later.
+- **`screens/weather.py`** — current temperature + condition icon, refetched
+  every `--refresh-minutes`.
+- **`screens/stocks.py`** — stub screen ("STOCKS" / "SOON"); replace
+  `render()` with a real quote fetch later.
 
 Switch screens two ways:
 

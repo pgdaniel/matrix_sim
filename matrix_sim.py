@@ -10,7 +10,7 @@ as usual.
 USAGE — minimal change to your script
 --------------------------------------------------------------------------
 
-At the top of weather_fetcher_pizero2w.py, swap the import based on a flag:
+At the top of matrix_server.py, swap the import based on a flag:
 
     import argparse
     ap = argparse.ArgumentParser()
@@ -40,7 +40,7 @@ Everything else stays the same:
     canvas = matrix.SwapOnVSync(canvas)       # works
 
 Then test:
-    python weather_fetcher_pizero2w.py --simulate --refresh-minutes=1
+    python matrix_server.py --simulate --refresh-minutes=1
 Open led-matrix-simulator.html in a browser, point it at ws://<pi-ip>:8888
 (or ws://localhost:8888 if testing on a desktop).
 

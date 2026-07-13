@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "matrix-display",
-      script: "weather_fetcher_pizero2w.py",
+      script: "matrix_server.py",
       interpreter: __dirname + "/.venv/bin/python3",
       // Simulate mode by default (no sudo, renders to the browser simulator
       // instead of a physical panel). Drop --simulate/--sim-port here, and
