@@ -133,3 +133,9 @@ sudo pm2 start ecosystem.config.js --only matrix-display
 - **Spacebar does nothing**: only works when the script's stdin is a real
   terminal. Under pm2 (or any headless launch), use the HTTP control server
   instead.
+- **`matrix-view` logs a `KeyboardInterrupt` traceback from `socket.getfqdn`
+  on restart**: that was `python -m http.server`'s blocking reverse-DNS
+  lookup on bind getting hit by pm2's stop signal mid-call — fixed by
+  `serve_view.py`, which skips that lookup. If you see this, `matrix-view`
+  isn't running the current `ecosystem.config.js`.
+  instead.
