@@ -139,7 +139,7 @@ class CyberpunkWeatherScreen(Screen):
         icon_size = HEIGHT
         _draw_neon_icon(draw, icon_kind, 1, 0, icon_size - 1, icon_size)
 
-        text = f"{round(temp_f)}F"
+        text = f"{round(temp_f)}°"
         x0, y0, x1, y1 = self.font.getbbox(text)
         tw, th = x1 - x0, y1 - y0
         tx = icon_size + max(0, (WIDTH - icon_size - tw) // 2)
