@@ -14,6 +14,9 @@ hardware or to a browser for local development.
 | `led-matrix-simulator.html` | Browser page that renders the streamed frames as a virtual LED panel |
 | `LindenHill-webfont.ttf` | Pixel font used for on-panel text |
 | `ecosystem.config.js` | pm2 process definitions (see below) |
+| `systemd/matrix-server.service` | systemd unit for running on the Pi itself (see below) |
+| `deploy.sh` | rsyncs this project to the Pi (see below) |
+| `requirements.txt` | Python dependencies |
 | `.venv/` | Project virtualenv with the script's dependencies |
 
 ## Setup
@@ -22,7 +25,7 @@ Dependencies live in a project-local virtualenv:
 
 ```
 python3 -m venv .venv
-.venv/bin/pip install click requests pillow websockets
+.venv/bin/pip install -r requirements.txt
 ```
 
 ## Running directly (no pm2)
@@ -125,7 +128,19 @@ dev/simulate workflows.
 
 Deploy the whole project (not just the script — `matrix_server.py` imports
 `screens/` and needs `matrix_sim.py`, `LindenHill-webfont.ttf` alongside it)
-to the Pi's `WorkingDirectory` (`/home/pi` by default in the unit file), then:
+to the Pi's `WorkingDirectory` (`/home/pi` by default in the unit file) with
+`deploy.sh`:
+
+```
+./deploy.sh                    # rsyncs to pi@192.168.1.160:/home/pi/
+PI_HOST=pi@<other-ip> ./deploy.sh   # different host
+./deploy.sh --delete           # also remove files on the Pi no longer present locally
+```
+
+It excludes `.git/`, `.venv/`, `__pycache__/`, and `.claude/`, and never
+touches the Pi's own `venv/` (even with `--delete`).
+
+Then, on the Pi:
 
 ```
 sudo cp systemd/matrix-server.service /etc/systemd/system/
