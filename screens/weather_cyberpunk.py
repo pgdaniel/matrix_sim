@@ -6,7 +6,7 @@ import threading
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .base import FONT_PATH, HEIGHT, Screen, WIDTH
+from .base import HEIGHT, Screen, WIDTH
 from .weather import get_location, get_weather
 
 BG_COLOR = (6, 3, 16)
@@ -15,19 +15,42 @@ NEON_CYAN = (0, 240, 255)
 NEON_PINK = (255, 0, 170)
 NEON_YELLOW = (255, 230, 60)
 
+RETRO_FONT_PATH = "VT323-Regular.ttf"
+
+# Retro/synthwave sun: a vertical orange-to-magenta gradient sliced by a few
+# horizontal gap bands that thicken toward the bottom.
+SUN_TOP_COLOR = (255, 214, 10)
+SUN_BOTTOM_COLOR = (255, 0, 110)
+SUN_GAPS = [(0.55, 1), (0.68, 2), (0.82, 3)]  # (fraction down, gap thickness in px)
+
 
 def _draw_scanlines(draw):
     for y in range(0, HEIGHT, 3):
         draw.line((0, y, WIDTH, y), fill=SCANLINE_COLOR, width=1)
 
 
-def _draw_neon_sun(draw, cx, cy, r):
-    draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=NEON_YELLOW, width=1)
-    for angle in range(0, 360, 45):
-        rad = math.radians(angle)
-        x1, y1 = cx + (r + 2) * math.cos(rad), cy + (r + 2) * math.sin(rad)
-        x2, y2 = cx + (r + 5) * math.cos(rad), cy + (r + 5) * math.sin(rad)
-        draw.line((x1, y1, x2, y2), fill=NEON_YELLOW, width=1)
+def _lerp_color(c1, c2, t):
+    return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
+
+
+def _draw_retro_sun(draw, cx, cy, r):
+    top, bottom = cy - r, cy + r
+    for y in range(int(top), int(bottom) + 1):
+        dy = y - cy
+        if abs(dy) > r:
+            continue
+        dx = math.sqrt(max(0, r * r - dy * dy))
+        t = (y - top) / (2 * r) if r else 0
+        draw.line((cx - dx, y, cx + dx, y), fill=_lerp_color(SUN_TOP_COLOR, SUN_BOTTOM_COLOR, t))
+
+    for frac, thickness in SUN_GAPS:
+        gy0 = top + 2 * r * frac
+        gy1 = gy0 + thickness
+        dy_max = max(abs(gy0 - cy), abs(gy1 - cy))
+        if dy_max > r:
+            continue
+        dx = math.sqrt(max(0, r * r - dy_max * dy_max))
+        draw.rectangle((cx - dx, gy0, cx + dx, gy1), fill=BG_COLOR)
 
 
 def _draw_neon_cloud(draw, x0, y0, x1, y1):
@@ -42,9 +65,9 @@ def _draw_neon_icon(draw, kind, x0, y0, x1, y1):
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
 
     if kind == "sun":
-        _draw_neon_sun(draw, cx, cy, min(w, h) / 2 - 5)
+        _draw_retro_sun(draw, cx, cy, min(w, h) / 2 - 5)
     elif kind == "partly_cloudy":
-        _draw_neon_sun(draw, x0 + w * 0.35, y0 + h * 0.30, min(w, h) / 6)
+        _draw_retro_sun(draw, x0 + w * 0.35, y0 + h * 0.30, min(w, h) / 6)
         _draw_neon_cloud(draw, x0 + w * 0.05, y0 + h * 0.35, x1, y1)
     elif kind == "cloudy":
         _draw_neon_cloud(draw, x0, y0 + h * 0.10, x1, y1)
@@ -78,7 +101,7 @@ class CyberpunkWeatherScreen(Screen):
         self.longitude = longitude
         self.refresh_minutes = refresh_minutes
         self.city = None
-        self.font = ImageFont.truetype(FONT_PATH, 16)
+        self.font = ImageFont.truetype(RETRO_FONT_PATH, 24)
         self._lock = threading.Lock()
         self._temp_f = None
         self._icon_kind = None
