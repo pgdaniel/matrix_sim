@@ -1,0 +1,15 @@
+[Unit]
+Description=Matrix Display Server (weather, stocks, and other screens)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/venv/bin/python /home/pi/matrix_server.py --refresh-minutes=1
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

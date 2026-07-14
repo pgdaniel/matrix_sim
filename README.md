@@ -116,6 +116,40 @@ needs GPIO access:
 sudo pm2 start ecosystem.config.js --only matrix-display
 ```
 
+## Running under systemd (Pi hardware)
+
+On the Pi itself, `systemd/matrix-server.service` runs `matrix_server.py`
+directly on the real panel (no `--simulate`) as a boot-time service — this
+is the deployment path actually used on hardware; pm2 above is for
+dev/simulate workflows.
+
+Deploy the whole project (not just the script — `matrix_server.py` imports
+`screens/` and needs `matrix_sim.py`, `LindenHill-webfont.ttf` alongside it)
+to the Pi's `WorkingDirectory` (`/home/pi` by default in the unit file), then:
+
+```
+sudo cp systemd/matrix-server.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now matrix-server.service
+sudo journalctl -u matrix-server -f       # check it came up clean
+```
+
+If replacing an older `weather-matrix.service`:
+
+```
+sudo systemctl disable --now weather-matrix.service
+sudo rm /etc/systemd/system/weather-matrix.service
+```
+
+Screen switching works the same as under pm2 — the control server (port
+`8787`) is the mechanism, since systemd services don't have a TTY either.
+
+The unit runs as `User=pi` (unprivileged). The `rgbmatrix` driver normally
+needs root for GPIO access (see `matrix_server.py`'s docstring) — if the
+service was already working this way, the Pi's GPIO permissions are
+presumably set up for the `pi` user already; if it wasn't, that's a
+separate, pre-existing issue this update doesn't address.
+
 ## Ports
 
 | Port | What |
