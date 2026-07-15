@@ -7,26 +7,21 @@ import threading
 from PIL import Image, ImageDraw, ImageFont
 
 from .base import HEIGHT, Screen, WIDTH
+from .cyberpunk_theme import (
+    BG_COLOR,
+    NEON_CYAN,
+    NEON_PINK,
+    RETRO_FONT_PATH,
+    draw_glow_text,
+    draw_scanlines,
+)
 from .weather import get_location, get_weather
-
-BG_COLOR = (6, 3, 16)
-SCANLINE_COLOR = (20, 8, 40)
-NEON_CYAN = (0, 240, 255)
-NEON_PINK = (255, 0, 170)
-NEON_YELLOW = (255, 230, 60)
-
-RETRO_FONT_PATH = "VT323-Regular.ttf"
 
 # Retro/synthwave sun: a vertical orange-to-magenta gradient sliced by a few
 # horizontal gap bands that thicken toward the bottom.
 SUN_TOP_COLOR = (255, 214, 10)
 SUN_BOTTOM_COLOR = (255, 0, 110)
 SUN_GAPS = [(0.55, 1), (0.68, 2), (0.82, 3)]  # (fraction down, gap thickness in px)
-
-
-def _draw_scanlines(draw):
-    for y in range(0, HEIGHT, 3):
-        draw.line((0, y, WIDTH, y), fill=SCANLINE_COLOR, width=1)
 
 
 def _lerp_color(c1, c2, t):
@@ -134,7 +129,7 @@ class CyberpunkWeatherScreen(Screen):
 
         img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
         draw = ImageDraw.Draw(img)
-        _draw_scanlines(draw)
+        draw_scanlines(draw)
 
         icon_size = HEIGHT
         _draw_neon_icon(draw, icon_kind, 1, 0, icon_size - 1, icon_size)
@@ -144,8 +139,6 @@ class CyberpunkWeatherScreen(Screen):
         tw, th = x1 - x0, y1 - y0
         tx = icon_size + max(0, (WIDTH - icon_size - tw) // 2)
         ty = (HEIGHT - th) // 2 - y0
-        # cheap glow: a pink "shadow" one pixel off, cyan text on top
-        draw.text((tx + 1, ty + 1), text, font=self.font, fill=NEON_PINK)
-        draw.text((tx, ty), text, font=self.font, fill=NEON_CYAN)
+        draw_glow_text(draw, (tx, ty), text, self.font)
 
         return img
