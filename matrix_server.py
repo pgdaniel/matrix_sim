@@ -98,13 +98,26 @@ def make_control_server(screens, port):
         def log_message(self, fmt, *args):
             pass  # keep stdout limited to display-related logging
 
+        def _cors(self):
+            # Lets led-matrix-simulator.html (served from a different origin
+            # — a local file, or matrix-view on a different port) call this
+            # from JS instead of just curl.
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
         def _reply(self, body):
             data = (body + "\n").encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.send_header("Content-Length", str(len(data)))
+            self._cors()
             self.end_headers()
             self.wfile.write(data)
+
+        def do_OPTIONS(self):
+            self.send_response(204)
+            self._cors()
+            self.end_headers()
 
         def do_POST(self):
             if self.path == "/next-screen":
@@ -113,6 +126,7 @@ def make_control_server(screens, port):
                 self._reply(f"switched to {screens.current.name}")
             else:
                 self.send_response(404)
+                self._cors()
                 self.end_headers()
 
         def do_GET(self):
@@ -120,6 +134,7 @@ def make_control_server(screens, port):
                 self._reply(screens.current.name)
             else:
                 self.send_response(404)
+                self._cors()
                 self.end_headers()
 
     return http.server.ThreadingHTTPServer(("0.0.0.0", port), Handler)

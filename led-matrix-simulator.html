@@ -78,6 +78,12 @@
       <option value="18">18x</option>
     </select>
   </div>
+  <div class="controls" id="live-controls-2">
+    <label class="field">Control server
+      <input type="text" id="controlurl" value="http://localhost:8787" size="22">
+    </label>
+    <button id="next-screen">Next screen &#8594;</button>
+  </div>
   <div class="controls" id="demo-controls" style="display:none">
     <label class="field">City
       <input type="text" id="city" value="Farmington" size="14">
@@ -184,8 +190,16 @@ document.getElementById('load').onclick=function(){fetchWeather(document.getElem
 document.getElementById('city').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('load').click();});
 document.getElementById('grid2').onclick=function(e){showGrid=!showGrid;e.target.classList.toggle('toggle-on',showGrid);render();};
 const tabLive=document.getElementById('tab-live'),tabDemo=document.getElementById('tab-demo');
-tabLive.onclick=function(){tabLive.classList.add('active');tabDemo.classList.remove('active');document.getElementById('live-controls').style.display='flex';document.getElementById('demo-controls').style.display='none';};
-tabDemo.onclick=function(){tabDemo.classList.add('active');tabLive.classList.remove('active');document.getElementById('demo-controls').style.display='flex';document.getElementById('live-controls').style.display='none';if(ws){try{ws.close();}catch(e){}}fetchWeather('Farmington');};
+tabLive.onclick=function(){tabLive.classList.add('active');tabDemo.classList.remove('active');document.getElementById('live-controls').style.display='flex';document.getElementById('live-controls-2').style.display='flex';document.getElementById('demo-controls').style.display='none';};
+tabDemo.onclick=function(){tabDemo.classList.add('active');tabLive.classList.remove('active');document.getElementById('demo-controls').style.display='flex';document.getElementById('live-controls').style.display='none';document.getElementById('live-controls-2').style.display='none';if(ws){try{ws.close();}catch(e){}}fetchWeather('Farmington');};
+document.getElementById('next-screen').onclick=function(){
+  const url=document.getElementById('controlurl').value.trim().replace(/\/$/,'');
+  setStatus('switching screen...');
+  fetch(url+'/next-screen',{method:'POST'})
+    .then(function(r){return r.text();})
+    .then(function(t){setStatus(t.trim());})
+    .catch(function(e){setStatus('control server unreachable','err');});
+};
 clearFB();cText('WEATHER',8,255,150,40);cText('MATRIX',16,200,210,225);render();
 setStatus('idle - connect or demo');
 </script>
