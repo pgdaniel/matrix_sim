@@ -13,7 +13,7 @@ hardware or to a browser for local development.
 | `matrix_sim.py` | Drop-in stand-in for `rgbmatrix` that streams frames to a browser over WebSocket instead of a physical panel |
 | `led-matrix-simulator.html` | Browser page that renders the streamed frames as a virtual LED panel |
 | `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
-| `VT323-Regular.ttf` | Retro terminal font used by `screens/weather_cyberpunk.py` (OFL-licensed, see `VT323-OFL.txt`) |
+| `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
 | `ecosystem.config.js` | pm2 process definitions (see below) |
 | `systemd/matrix-server.service` | systemd unit for running on the Pi itself (see below) |
 | `deploy.sh` | rsyncs this project to the Pi (see below) |
@@ -63,6 +63,12 @@ just adding another file plus one line in `main()`.
   theme: a gradient orange-to-magenta sun sliced by horizontal bands, magenta
   cloud outlines, cyan accents, and VT323 (retro terminal font) temperature
   text with a pink/cyan glow.
+- **`screens/clock_cyberpunk.py`** — current time (`HH:MM`) and date, same
+  palette/font/scanlines as the cyberpunk weather screen. Ticks its own
+  redraw once a second — the only screen that doesn't need a network fetch.
+- **`screens/cyberpunk_theme.py`** — not a screen itself; the shared
+  palette, font path, scanline helper, and glow-text helper the two
+  cyberpunk screens both import, so their look stays in sync.
 - **`screens/stocks.py`** — stub screen ("STOCKS" / "SOON"); replace
   `render()` with a real quote fetch later.
 
