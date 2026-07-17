@@ -85,6 +85,10 @@ Switch screens two ways:
   curl http://localhost:8787/screen                # check current screen
   ```
 
+  `led-matrix-simulator.html`'s Live tab also has a "Next screen" button
+  that does this same `POST` from the browser (set the "Control server"
+  field if it's not on the default `http://localhost:8787`).
+
 ## Viewing the simulator
 
 `led-matrix-simulator.html` can be opened directly as a file, or served over
