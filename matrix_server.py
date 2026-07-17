@@ -83,7 +83,14 @@ from pathlib import Path
 
 import click
 
-from screens import ClockCyberpunkScreen, CyberpunkWeatherScreen, ScreenManager, StocksScreen, WeatherScreen
+from screens import (
+    AqiCyberpunkScreen,
+    ClockCyberpunkScreen,
+    CyberpunkWeatherScreen,
+    ScreenManager,
+    StocksScreen,
+    WeatherScreen,
+)
 from screens.transitions import slide_transition
 
 
@@ -225,7 +232,8 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             WeatherScreen(latitude, longitude, refresh_minutes),
             StocksScreen(),
             CyberpunkWeatherScreen(latitude, longitude, refresh_minutes),
-            ClockCyberpunkScreen(latitude, longitude, refresh_minutes),
+            ClockCyberpunkScreen(),
+            AqiCyberpunkScreen(latitude, longitude, refresh_minutes),
         ],
         config_path=Path(__file__).parent / "screen_config.json",
     )

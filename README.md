@@ -64,14 +64,16 @@ just adding another file plus one line in `main()`.
   theme: a gradient orange-to-magenta sun sliced by horizontal bands, magenta
   cloud outlines, cyan accents, and VT323 (retro terminal font) temperature
   text with a pink/cyan glow.
-- **`screens/clock_cyberpunk.py`** — current time (`HH:MM`) with the current
-  temperature (far left) and AQI (far right) underneath, same
-  palette/font/scanlines as the cyberpunk weather screen. Ticks its own
-  redraw once a second for the clock, on top of the usual weather/AQI
-  refetch on `--refresh-minutes`.
+- **`screens/clock_cyberpunk.py`** — current time (`HH:MM`), same
+  palette/font/scanlines as the other cyberpunk screens. Ticks its own
+  redraw once a second.
+- **`screens/aqi_cyberpunk.py`** — current US AQI, same palette/font/
+  scanlines as the other cyberpunk screens. The number glows in a color for
+  its severity category (green "GOOD" through maroon "HAZARDOUS"),
+  refetched every `--refresh-minutes`.
 - **`screens/cyberpunk_theme.py`** — not a screen itself; the shared
-  palette, font path, scanline helper, and glow-text helper the two
-  cyberpunk screens both import, so their look stays in sync.
+  palette, font path, scanline helper, and glow-text helper the cyberpunk
+  screens all import, so their look stays in sync.
 - **`screens/stocks.py`** — stub screen ("STOCKS" / "SOON"); replace
   `render()` with a real quote fetch later.
 
