@@ -17,6 +17,7 @@ RSYNC_ARGS=(
   --exclude="__pycache__/"
   --exclude="*.pyc"
   --exclude=".claude/"
+  --exclude="screen_config.json"  # runtime state the Pi writes itself — never overwrite it from a local dev checkout
 )
 
 if [[ "${1:-}" == "--delete" ]]; then
