@@ -59,6 +59,22 @@ def get_weather(lat, lon):
     return current["temperature_2m"], icon_for_code(current["weather_code"])
 
 
+def get_daily_range(lat, lon):
+    resp = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "daily": "temperature_2m_max,temperature_2m_min",
+            "temperature_unit": "fahrenheit",
+            "timezone": "auto",
+        },
+        timeout=10,
+    ).json()
+    daily = resp["daily"]
+    return daily["temperature_2m_min"][0], daily["temperature_2m_max"][0]
+
+
 def draw_sun(draw, cx, cy, r):
     draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=SUN_COLOR)
     for angle in range(0, 360, 45):
