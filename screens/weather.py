@@ -59,6 +59,19 @@ def get_weather(lat, lon):
     return current["temperature_2m"], icon_for_code(current["weather_code"])
 
 
+def get_aqi(lat, lon):
+    resp = requests.get(
+        "https://air-quality-api.open-meteo.com/v1/air-quality",
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "current": "us_aqi",
+        },
+        timeout=10,
+    ).json()
+    return resp["current"]["us_aqi"]
+
+
 def draw_sun(draw, cx, cy, r):
     draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=SUN_COLOR)
     for angle in range(0, 360, 45):
