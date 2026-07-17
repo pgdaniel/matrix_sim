@@ -26,13 +26,13 @@ fi
 echo "Syncing $SCRIPT_DIR/ -> $PI_HOST:$PI_DEST"
 rsync "${RSYNC_ARGS[@]}" "$SCRIPT_DIR"/ "$PI_HOST:$PI_DEST"
 
+echo "Restarting matrix-server on $PI_HOST..."
+ssh "$PI_HOST" 'sudo systemctl restart matrix-server'
+
 cat <<EOF
 
 Done.
 
-If dependencies changed:
-  ssh $PI_HOST 'cd ${PI_DEST%/} && venv/bin/pip install -r requirements.txt'
-
-Then restart the service:
-  ssh $PI_HOST 'sudo systemctl restart matrix-server'
+If dependencies changed, install them and restart again:
+  ssh $PI_HOST 'cd ${PI_DEST%/} && venv/bin/pip install -r requirements.txt && sudo systemctl restart matrix-server'
 EOF

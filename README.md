@@ -153,9 +153,12 @@ PI_HOST=pi@<other-ip> ./deploy.sh   # different host
 ```
 
 It excludes `.git/`, `.venv/`, `__pycache__/`, and `.claude/`, and never
-touches the Pi's own `venv/` (even with `--delete`).
+touches the Pi's own `venv/` (even with `--delete`). After syncing, it
+`ssh`es in and runs `sudo systemctl restart matrix-server` to pick up the
+new code (needs a passwordless SSH key and passwordless `sudo` for that
+command on the Pi).
 
-Then, on the Pi:
+The first time, set up the service on the Pi:
 
 ```
 sudo cp systemd/matrix-server.service /etc/systemd/system/
