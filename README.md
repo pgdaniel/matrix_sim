@@ -16,7 +16,7 @@ hardware or to a browser for local development.
 | `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
 | `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
 | `ecosystem.config.js` | pm2 process definitions (see below) |
-| `systemd/matrix-server.service` | systemd unit for running on the Pi itself (see below) |
+| `systemd/matrix-server.service`, `systemd/matrix-settings.service` | systemd units for running on the Pi itself (see below) |
 | `deploy.sh` | rsyncs this project to the Pi (see below) |
 | `requirements.txt` | Python dependencies |
 | `.venv/` | Project virtualenv with the script's dependencies |
@@ -184,18 +184,25 @@ PI_HOST=pi@<other-ip> ./deploy.sh   # different host
 
 It excludes `.git/`, `.venv/`, `__pycache__/`, and `.claude/`, and never
 touches the Pi's own `venv/` (even with `--delete`). After syncing, it
-`ssh`es in and runs `sudo systemctl restart matrix-server` to pick up the
-new code (needs a passwordless SSH key and passwordless `sudo` for that
-command on the Pi).
+`ssh`es in and restarts `matrix-server` (and `matrix-settings`, if that
+service is installed) to pick up the new code (needs a passwordless SSH key
+and passwordless `sudo` for those commands on the Pi).
 
-The first time, set up the service on the Pi:
+The first time, set up the services on the Pi — `matrix-server.service` runs
+the display driver, `matrix-settings.service` runs the settings UI
+(`settings_app.py`) on port `8789`, talking to `matrix-server` over
+`localhost:8787`:
 
 ```
-sudo cp systemd/matrix-server.service /etc/systemd/system/
+sudo cp systemd/matrix-server.service systemd/matrix-settings.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now matrix-server.service
-sudo journalctl -u matrix-server -f       # check it came up clean
+sudo systemctl enable --now matrix-server.service matrix-settings.service
+sudo journalctl -u matrix-server -u matrix-settings -f       # check both came up clean
 ```
+
+`matrix-settings.service` needs `flask` in the Pi's `venv` (see
+`requirements.txt`) — install it there the same way as any other dependency
+change.
 
 If replacing an older `weather-matrix.service`:
 

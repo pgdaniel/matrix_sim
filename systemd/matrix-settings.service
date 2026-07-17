@@ -1,0 +1,15 @@
+[Unit]
+Description=Matrix Display Settings UI (enabled screens, auto-advance, seconds)
+After=network-online.target matrix-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/venv/bin/python /home/pi/settings_app.py --port 8789
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
