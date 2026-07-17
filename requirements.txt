@@ -2,3 +2,4 @@ click
 requests
 pillow
 websockets
+flask

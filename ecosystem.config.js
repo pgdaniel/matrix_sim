@@ -25,5 +25,17 @@ module.exports = {
       autorestart: true,
       watch: false,
     },
+    {
+      // Web UI for picking enabled screens, auto-advance, and per-screen
+      // seconds. Talks to matrix-display's control server (port 8787), so
+      // needs flask + requests from the venv, same as matrix-display.
+      name: "matrix-settings",
+      script: "settings_app.py",
+      interpreter: __dirname + "/.venv/bin/python3",
+      args: "--port 8789",
+      cwd: __dirname,
+      autorestart: true,
+      watch: false,
+    },
   ],
 };

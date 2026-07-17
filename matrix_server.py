@@ -58,15 +58,28 @@ there. The HTTP control server always works instead:
 
 $ curl -X POST http://localhost:8787/next-screen
 $ curl http://localhost:8787/screen
+
+Which screens are enabled, whether the display auto-advances between them,
+and how many seconds each one gets are all readable/writable the same way:
+
+$ curl http://localhost:8787/config
+$ curl -X POST http://localhost:8787/config \
+    -H 'Content-Type: application/json' \
+    -d '{"enabled": ["weather", "stocks"], "durations": {"weather": 15}, "auto_advance": true}'
+
+settings_app.py is a tiny Flask UI over that same /config endpoint — see
+README.md.
 """
 
 import http.server
+import json
 import signal
 import sys
 import termios
 import threading
 import time
 import tty
+from pathlib import Path
 
 import click
 
@@ -115,6 +128,20 @@ def make_control_server(screens, port):
             self.end_headers()
             self.wfile.write(data)
 
+        def _reply_json(self, obj, status=200):
+            data = json.dumps(obj).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self._cors()
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _not_found(self):
+            self.send_response(404)
+            self._cors()
+            self.end_headers()
+
         def do_OPTIONS(self):
             self.send_response(204)
             self._cors()
@@ -125,18 +152,30 @@ def make_control_server(screens, port):
                 screens.next_screen()
                 print(f"[display] switched to {screens.current.name} screen")
                 self._reply(f"switched to {screens.current.name}")
+            elif self.path == "/config":
+                length = int(self.headers.get("Content-Length", 0))
+                try:
+                    body = json.loads(self.rfile.read(length) or b"{}")
+                except ValueError:
+                    self._reply_json({"error": "invalid JSON body"}, status=400)
+                    return
+                screens.set_config(
+                    enabled=body.get("enabled"),
+                    durations=body.get("durations"),
+                    auto_advance=body.get("auto_advance"),
+                )
+                print(f"[display] config updated: {screens.get_config()}")
+                self._reply_json(screens.get_config())
             else:
-                self.send_response(404)
-                self._cors()
-                self.end_headers()
+                self._not_found()
 
         def do_GET(self):
             if self.path == "/screen":
                 self._reply(screens.current.name)
+            elif self.path == "/config":
+                self._reply_json(screens.get_config())
             else:
-                self.send_response(404)
-                self._cors()
-                self.end_headers()
+                self._not_found()
 
     return http.server.ThreadingHTTPServer(("0.0.0.0", port), Handler)
 
@@ -181,12 +220,15 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
     canvas = matrix.CreateFrameCanvas()
 
     stop_event = threading.Event()
-    screens = ScreenManager([
-        WeatherScreen(latitude, longitude, refresh_minutes),
-        StocksScreen(),
-        CyberpunkWeatherScreen(latitude, longitude, refresh_minutes),
-        ClockCyberpunkScreen(latitude, longitude, refresh_minutes),
-    ])
+    screens = ScreenManager(
+        [
+            WeatherScreen(latitude, longitude, refresh_minutes),
+            StocksScreen(),
+            CyberpunkWeatherScreen(latitude, longitude, refresh_minutes),
+            ClockCyberpunkScreen(latitude, longitude, refresh_minutes),
+        ],
+        config_path=Path(__file__).parent / "screen_config.json",
+    )
     screens.start_all(stop_event)
 
     control_server = make_control_server(screens, control_port)
