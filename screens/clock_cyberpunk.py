@@ -1,5 +1,6 @@
 """Cyberpunk-themed clock screen: current time, same neon palette, scanlines,
-and VT323 font as screens/weather_cyberpunk.py."""
+and VT323 font as screens/weather_cyberpunk.py. The current temperature is
+shown underneath the time instead of the calendar date."""
 
 import threading
 from datetime import datetime
@@ -8,14 +9,21 @@ from PIL import Image, ImageDraw, ImageFont
 
 from .base import HEIGHT, Screen, WIDTH
 from .cyberpunk_theme import BG_COLOR, RETRO_FONT_PATH, draw_glow_text, draw_scanlines
+from .weather import get_location, get_weather
 
 
 class ClockCyberpunkScreen(Screen):
     name = "clock-cyberpunk"
 
-    def __init__(self):
+    def __init__(self, latitude=None, longitude=None, refresh_minutes=10):
         self.time_font = ImageFont.truetype(RETRO_FONT_PATH, 24)
-        self.date_font = ImageFont.truetype(RETRO_FONT_PATH, 12)
+        self.weather_font = ImageFont.truetype(RETRO_FONT_PATH, 12)
+        self.latitude = latitude
+        self.longitude = longitude
+        self.refresh_minutes = refresh_minutes
+        self.city = None
+        self._lock = threading.Lock()
+        self._temp_f = None
 
     def start(self, stop_event, notify_update):
         def ticker():
@@ -25,10 +33,30 @@ class ClockCyberpunkScreen(Screen):
 
         threading.Thread(target=ticker, daemon=True).start()
 
+        if self.latitude is None or self.longitude is None:
+            self.latitude, self.longitude, self.city = get_location()
+        else:
+            self.city = f"{self.latitude:.2f}, {self.longitude:.2f}"
+
+        def updater():
+            while not stop_event.is_set():
+                try:
+                    temp_f, _icon_kind = get_weather(self.latitude, self.longitude)
+                    with self._lock:
+                        self._temp_f = temp_f
+                    notify_update()
+                except Exception as e:
+                    print(f"[clock-cyberpunk] weather fetch failed: {e}")
+                stop_event.wait(max(1, self.refresh_minutes) * 60)
+
+        threading.Thread(target=updater, daemon=True).start()
+
     def render(self):
         now = datetime.now()
         time_text = now.strftime("%H:%M")
-        date_text = now.strftime("%a %m/%d").upper()
+        with self._lock:
+            temp_f = self._temp_f
+        weather_text = f"{round(temp_f)}°" if temp_f is not None else ""
 
         img = Image.new("RGB", (WIDTH, HEIGHT), BG_COLOR)
         draw = ImageDraw.Draw(img)
@@ -40,10 +68,11 @@ class ClockCyberpunkScreen(Screen):
         ty = 3 - y0
         draw_glow_text(draw, (tx, ty), time_text, self.time_font)
 
-        dx0, dy0, dx1, dy1 = self.date_font.getbbox(date_text)
-        dw, dh = dx1 - dx0, dy1 - dy0
-        ddx = (WIDTH - dw) // 2
-        ddy = HEIGHT - dh - 4 - dy0
-        draw_glow_text(draw, (ddx, ddy), date_text, self.date_font)
+        if weather_text:
+            wx0, wy0, wx1, wy1 = self.weather_font.getbbox(weather_text)
+            ww, wh = wx1 - wx0, wy1 - wy0
+            wwx = (WIDTH - ww) // 2
+            wwy = HEIGHT - wh - 4 - wy0
+            draw_glow_text(draw, (wwx, wwy), weather_text, self.weather_font)
 
         return img

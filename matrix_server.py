@@ -184,7 +184,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
         WeatherScreen(latitude, longitude, refresh_minutes),
         StocksScreen(),
         CyberpunkWeatherScreen(latitude, longitude, refresh_minutes),
-        ClockCyberpunkScreen(),
+        ClockCyberpunkScreen(latitude, longitude, refresh_minutes),
     ])
     screens.start_all(stop_event)
 
