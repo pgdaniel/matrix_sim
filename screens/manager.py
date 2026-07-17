@@ -11,6 +11,12 @@ class ScreenManager:
         self._index = 0
         self.dirty = threading.Event()
         self.dirty.set()
+        # Set by next_screen(), cleared by the display loop once it has
+        # played the transition animation into the newly-current screen.
+        self.transition_pending = threading.Event()
+        # Last frame actually pushed to the matrix, used as the "from" frame
+        # for the transition animation.
+        self.last_image = None
 
     @property
     def current(self):
@@ -20,6 +26,7 @@ class ScreenManager:
     def next_screen(self):
         with self._lock:
             self._index = (self._index + 1) % len(self.screens)
+        self.transition_pending.set()
         self.dirty.set()
 
     def start_all(self, stop_event):

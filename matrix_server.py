@@ -71,6 +71,7 @@ import tty
 import click
 
 from screens import ClockCyberpunkScreen, CyberpunkWeatherScreen, ScreenManager, StocksScreen, WeatherScreen
+from screens.transitions import slide_transition
 
 
 def keyboard_listener(screens, stop_event):
@@ -214,12 +215,22 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
 
     try:
         while not stop_event.is_set():
-            if screens.dirty.is_set():
+            if screens.transition_pending.is_set():
+                screens.transition_pending.clear()
+                new_img = screens.current.render()
+                if new_img is not None:
+                    new_img = new_img.convert("RGB")
+                    canvas = slide_transition(matrix, canvas, screens.last_image, new_img)
+                    screens.last_image = new_img
+                screens.dirty.clear()
+            elif screens.dirty.is_set():
                 screens.dirty.clear()
                 img = screens.current.render()
                 if img is not None:
-                    canvas.SetImage(img.convert("RGB"))
+                    img = img.convert("RGB")
+                    canvas.SetImage(img)
                     canvas = matrix.SwapOnVSync(canvas)
+                    screens.last_image = img
             time.sleep(0.05)
     finally:
         stop_event.set()
