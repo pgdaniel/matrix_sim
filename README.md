@@ -15,6 +15,7 @@ hardware or to a browser for local development.
 | `settings_app.py` | Tiny Flask UI for enabled screens / auto-advance / per-screen seconds (see below) |
 | `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
 | `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
+| `MatrixRainKana.ttf` | Katakana/digits/A-Z subset of Noto Sans Mono CJK JP used by `screens/matrix_rain.py` (OFL-licensed, see `MatrixRainKana-OFL.txt`) |
 | `ecosystem.config.js` | pm2 process definitions (see below) |
 | `systemd/matrix-server.service`, `systemd/matrix-settings.service` | systemd units for running on the Pi itself (see below) |
 | `deploy.sh` | rsyncs this project to the Pi (see below) |

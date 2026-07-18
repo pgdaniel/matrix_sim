@@ -102,6 +102,7 @@ from screens import (
     AqiCyberpunkScreen,
     ClockCyberpunkScreen,
     CyberpunkWeatherScreen,
+    MatrixRainScreen,
     MessageScreen,
     ScreenManager,
     StocksScreen,
@@ -317,6 +318,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             ClockCyberpunkScreen(),
             AqiCyberpunkScreen(latitude, longitude, refresh_minutes),
             MessageScreen(),
+            MatrixRainScreen(),
         ],
         config_path=Path(__file__).parent / "screen_config.json",
     )
