@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 """Tiny Flask app for controlling the matrix display: a settings form
-(enabled screens, auto-advance, seconds each) plus a controls-free kiosk
-view for mirroring it on a second screen.
+(enabled screens, auto-advance, seconds each), a controls-free kiosk view
+for mirroring it on a second screen, and a POST /message endpoint for
+setting the "message" screen's text.
 
-Neither touches ScreenManager directly — both are thin clients of
-matrix_server.py's control server (GET/POST /config, and for the kiosk view,
-matrix_sim.py's WebSocket frame broadcaster), the same one
+None of these touch ScreenManager directly — all are thin clients of
+matrix_server.py's control server (GET/POST /config, POST /message, and for
+the kiosk view, matrix_sim.py's WebSocket frame broadcaster), the same one
 led-matrix-simulator.html's "Next screen" button talks to. That means this
 can run as its own process (even its own host) alongside matrix_server.py,
 same as matrix-view does for the simulator page.
@@ -224,6 +225,16 @@ def index():
     except requests.RequestException as e:
         return render_template_string(PAGE, config=None, error=str(e), control_url=CONTROL_URL)
     return render_template_string(PAGE, config=config, error=None, control_url=CONTROL_URL)
+
+
+@app.route("/message", methods=["POST"])
+def message():
+    """Forwards {"msg": "..."} to matrix_server.py's control server, which
+    keeps it in memory only (see screens/message.py) — nothing here or on
+    the display side writes it to disk."""
+    body = request.get_json(silent=True) or {}
+    resp = requests.post(f"{CONTROL_URL}/message", json={"msg": body.get("msg", "")}, timeout=3)
+    return Response(resp.content, status=resp.status_code, mimetype="application/json")
 
 
 @app.route("/kiosk")

@@ -41,6 +41,9 @@ class ScreenManager:
         with self._lock:
             return self.screens[self._index]
 
+    def get_screen(self, name):
+        return self._by_name.get(name)
+
     def _enabled_in_order(self):
         """self.screens filtered down to enabled ones, falling back to all
         of them if enabled somehow ends up empty."""

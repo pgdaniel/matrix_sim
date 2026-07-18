@@ -74,6 +74,15 @@ $ curl -X POST http://localhost:8787/config \
 
 settings_app.py is a tiny Flask UI over that same /config endpoint — see
 README.md.
+
+The "message" screen shows a short text message ("Hello" by default),
+settable the same way — kept in memory only, so it resets to the default on
+restart:
+
+$ curl http://localhost:8787/message
+$ curl -X POST http://localhost:8787/message \
+    -H 'Content-Type: application/json' \
+    -d '{"msg": "on my way"}'
 """
 
 import http.server
@@ -93,6 +102,7 @@ from screens import (
     AqiCyberpunkScreen,
     ClockCyberpunkScreen,
     CyberpunkWeatherScreen,
+    MessageScreen,
     ScreenManager,
     StocksScreen,
     WeatherScreen,
@@ -218,6 +228,20 @@ def make_control_server(screens, port):
                 )
                 print(f"[display] config updated: {screens.get_config()}")
                 self._reply_json(screens.get_config())
+            elif self.path == "/message":
+                length = int(self.headers.get("Content-Length", 0))
+                try:
+                    body = json.loads(self.rfile.read(length) or b"{}")
+                except ValueError:
+                    self._reply_json({"error": "invalid JSON body"}, status=400)
+                    return
+                message_screen = screens.get_screen("message")
+                if message_screen is None:
+                    self._reply_json({"error": "no message screen configured"}, status=404)
+                    return
+                message_screen.set_message(body.get("msg", ""))
+                print(f"[display] message set: {message_screen.message!r}")
+                self._reply_json({"msg": message_screen.message})
             else:
                 self._not_found()
 
@@ -226,6 +250,12 @@ def make_control_server(screens, port):
                 self._reply(screens.current.name)
             elif self.path == "/config":
                 self._reply_json(screens.get_config())
+            elif self.path == "/message":
+                message_screen = screens.get_screen("message")
+                if message_screen is None:
+                    self._reply_json({"error": "no message screen configured"}, status=404)
+                    return
+                self._reply_json({"msg": message_screen.message})
             else:
                 self._not_found()
 
@@ -286,6 +316,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             CyberpunkWeatherScreen(latitude, longitude, refresh_minutes),
             ClockCyberpunkScreen(),
             AqiCyberpunkScreen(latitude, longitude, refresh_minutes),
+            MessageScreen(),
         ],
         config_path=Path(__file__).parent / "screen_config.json",
     )

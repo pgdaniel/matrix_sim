@@ -76,6 +76,14 @@ just adding another file plus one line in `main()`.
   screens all import, so their look stays in sync.
 - **`screens/stocks.py`** — stub screen ("STOCKS" / "SOON"); replace
   `render()` with a real quote fetch later.
+- **`screens/message.py`** — a short text message, "Hello" by default,
+  word-wrapped and centered. Settable at runtime via `POST /message` on the
+  control server (or `settings_app.py`'s matching route) — kept in memory
+  only, so it resets to the default on restart:
+  ```
+  curl -X POST http://localhost:8787/message \
+      -H 'Content-Type: application/json' -d '{"msg": "on my way"}'
+  ```
 
 Switch screens two ways:
 
