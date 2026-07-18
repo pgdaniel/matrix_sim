@@ -14,6 +14,7 @@ same as matrix-view does for the simulator page.
     CONTROL_URL=http://<host>:8787 python3 settings_app.py --port 8789
 """
 
+import json
 import os
 from urllib.parse import urlparse
 
@@ -103,13 +104,17 @@ KIOSK_PAGE = """<!DOCTYPE html>
 // mode (matrix_sim.py's WebSocket broadcaster) — the real hardware path
 // (rgbmatrix, no --simulate) doesn't broadcast frames anywhere.
 //
-// Defaults to ws://__WS_DEFAULT_HOST__:8888 — the host matrix-display's
-// control server (this page's CONTROL_URL) is on, since its WebSocket
-// broadcaster normally lives on the same host. Override with
-// ?ws=ws://host:port or just ?port=NNNN.
+// Defaults to matrix-display's WebSocket broadcaster, which normally lives
+// on the same host as its control server (this page's CONTROL_URL). If
+// that's localhost — settings_app.py and matrix_server.py on the same
+// machine, the common case — use the browser's own location.hostname
+// instead of the literal string "localhost", since that would otherwise
+// resolve to whatever device is viewing this page, not the Pi. Override
+// with ?ws=ws://host:port or just ?port=NNNN.
 
 const params = new URLSearchParams(location.search);
-const WS_URL = params.get('ws') || 'ws://__WS_DEFAULT_HOST__:' + (params.get('port') || '8888');
+const defaultWsHost = __WS_DEFAULT_HOST_EXPR__;
+const WS_URL = params.get('ws') || 'ws://' + defaultWsHost + ':' + (params.get('port') || '8888');
 
 let COLS = 64, ROWS = 32, SCALE = 10;
 const wrap = document.getElementById('wrap');
@@ -223,8 +228,16 @@ def index():
 
 @app.route("/kiosk")
 def kiosk():
-    default_ws_host = urlparse(CONTROL_URL).hostname or "localhost"
-    return Response(KIOSK_PAGE.replace("__WS_DEFAULT_HOST__", default_ws_host), mimetype="text/html")
+    control_host = urlparse(CONTROL_URL).hostname or "localhost"
+    # If the control server is on localhost, that's this machine, not
+    # necessarily the viewer's — resolve it client-side from the URL they
+    # actually used to load the page instead of baking in "localhost".
+    if control_host in ("localhost", "127.0.0.1", "0.0.0.0"):
+        host_expr = "location.hostname"
+    else:
+        host_expr = json.dumps(control_host)
+    page = KIOSK_PAGE.replace("__WS_DEFAULT_HOST_EXPR__", host_expr)
+    return Response(page, mimetype="text/html")
 
 
 @app.route("/save", methods=["POST"])
