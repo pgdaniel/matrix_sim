@@ -94,7 +94,7 @@ class RGBMatrixOptions:
         object.__setattr__(self, k, v)
 
 
-class _FrameBroadcaster:
+class FrameBroadcaster:
     """Runs a WebSocket server in a background thread and pushes the latest
     frame to all connected browsers."""
     def __init__(self, width, height, port, brightness):
@@ -113,8 +113,8 @@ class _FrameBroadcaster:
         t.start()
         # give the server a beat to come up
         time.sleep(0.3)
-        print(f"[matrix_sim] WebSocket server on ws://0.0.0.0:{self.port}")
-        print(f"[matrix_sim] Open led-matrix-simulator.html and connect to it.")
+        print(f"[broadcast] WebSocket server on ws://0.0.0.0:{self.port}")
+        print(f"[broadcast] Open led-matrix-simulator.html and connect to it.")
 
     def _run(self):
         self._loop = asyncio.new_event_loop()
@@ -142,7 +142,7 @@ class _FrameBroadcaster:
         try:
             self._loop.run_until_complete(main())
         except Exception as e:
-            print(f"[matrix_sim] server error: {e}")
+            print(f"[broadcast] server error: {e}")
 
     def push(self, rgb_bytes):
         """rgb_bytes: raw R,G,B,R,G,B... length = w*h*3."""
@@ -179,7 +179,7 @@ class _FrameBroadcaster:
             pass
 
 
-def _image_to_rgb_bytes(image, w, h):
+def image_to_rgb_bytes(image, w, h):
     """Convert a PIL image into a flat RGB byte string sized w*h*3,
     cropping/padding from the top-left as the real library does."""
     from PIL import Image as _PILImage
@@ -220,7 +220,7 @@ class RGBMatrix:
         self.width = opts.cols * getattr(opts, "chain_length", 1)
         self.height = opts.rows * getattr(opts, "parallel", 1)
         port = kwargs.get("sim_port", getattr(opts, "sim_port", 8888))
-        self._bcast = _FrameBroadcaster(
+        self._bcast = FrameBroadcaster(
             self.width, self.height, port, getattr(opts, "brightness", 100)
         )
         # direct-draw framebuffer for SetPixel usage
@@ -230,7 +230,7 @@ class RGBMatrix:
 
     # ---- direct API (matrix.SetImage / SetPixel) ----
     def SetImage(self, image, offset_x=0, offset_y=0, *args, **kwargs):
-        self._bcast.push(_image_to_rgb_bytes(image, self.width, self.height))
+        self._bcast.push(image_to_rgb_bytes(image, self.width, self.height))
 
     def SetPixel(self, x, y, r, g, b):
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -262,7 +262,7 @@ class RGBMatrix:
     def SwapOnVSync(self, canvas):
         if canvas._pending is not None:
             self._bcast.push(
-                _image_to_rgb_bytes(canvas._pending, self.width, self.height)
+                image_to_rgb_bytes(canvas._pending, self.width, self.height)
             )
         elif id(canvas) in self._canvas_fb:
             self._bcast.push(bytes(self._canvas_fb[id(canvas)]))

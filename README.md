@@ -219,6 +219,14 @@ Screen switching works the same as under pm2 — the control server (port
 from your dev machine against `CONTROL_URL=http://<pi-ip>:8787` instead of
 on the Pi itself.
 
+Even without `--simulate`, `matrix_server.py` also broadcasts every frame it
+draws to the physical panel over WebSocket on `--sim-port` (default `8888`),
+so `led-matrix-simulator.html` and the settings app's `/kiosk` view mirror
+the real hardware, not just simulated runs. This adds a small amount of
+per-redraw CPU overhead (JSON+base64 encoding a frame) — worth knowing on a
+Pi Zero 2 W, which the top of `matrix_server.py` already flags as tight on
+headroom.
+
 The unit runs as `User=pi` (unprivileged). The `rgbmatrix` driver normally
 needs root for GPIO access (see `matrix_server.py`'s docstring) — if the
 service was already working this way, the Pi's GPIO permissions are

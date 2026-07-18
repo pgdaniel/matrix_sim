@@ -47,7 +47,12 @@ $ python matrix_server.py --simulate --refresh-minutes 1
 
 Then open led-matrix-simulator.html, go to the "Live" tab, and connect to
 ws://localhost:8888 (same machine) or ws://<pi-ip>:8888 (from another device).
-No sudo needed in simulate mode. Drop --simulate to drive the real panel.
+No sudo needed in simulate mode.
+
+Drop --simulate to drive the real panel — this also broadcasts every frame
+drawn to the physical panel over that same WebSocket protocol (on --sim-port,
+default 8888 either way), so led-matrix-simulator.html / settings_app.py's
+/kiosk view mirror the actual hardware too, not just simulated runs.
 
 ----------------------------------------------------------------------------
 SWITCHING SCREENS
@@ -83,6 +88,7 @@ from pathlib import Path
 
 import click
 
+from matrix_sim import FrameBroadcaster, image_to_rgb_bytes
 from screens import (
     AqiCyberpunkScreen,
     ClockCyberpunkScreen,
@@ -92,6 +98,45 @@ from screens import (
     WeatherScreen,
 )
 from screens.transitions import slide_transition
+
+
+class _BroadcastingCanvas:
+    """Wraps a real rgbmatrix FrameCanvas, remembering the image passed to
+    SetImage() so _BroadcastingMatrix.SwapOnVSync can mirror it."""
+    def __init__(self, inner):
+        self._inner = inner
+        self.pending_image = None
+
+    def SetImage(self, image, *args, **kwargs):
+        self.pending_image = image
+        self._inner.SetImage(image, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+class _BroadcastingMatrix:
+    """Wraps the real (rgbmatrix) RGBMatrix so every frame drawn to the
+    physical panel is also pushed to a FrameBroadcaster — the same
+    WebSocket protocol matrix_sim.py uses in --simulate mode — so
+    led-matrix-simulator.html / settings_app.py's /kiosk view can mirror
+    the real hardware, not just simulated runs. Used only when not
+    --simulate; matrix_sim.RGBMatrix already broadcasts on its own."""
+    def __init__(self, inner, broadcaster):
+        self._inner = inner
+        self._broadcaster = broadcaster
+
+    def CreateFrameCanvas(self):
+        return _BroadcastingCanvas(self._inner.CreateFrameCanvas())
+
+    def SwapOnVSync(self, canvas):
+        if canvas.pending_image is not None:
+            rgb = image_to_rgb_bytes(canvas.pending_image, self._broadcaster.width, self._broadcaster.height)
+            self._broadcaster.push(rgb)
+        return _BroadcastingCanvas(self._inner.SwapOnVSync(canvas._inner))
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
 
 
 def keyboard_listener(screens, stop_event):
@@ -199,7 +244,7 @@ def make_control_server(screens, port):
 @click.option("--hardware-mapping", default="adafruit-hat", help="Hardware mapping, e.g. adafruit-hat, adafruit-hat-pwm, regular")
 @click.option("--gpio-slowdown", type=int, default=2, help="GPIO slowdown factor; increase if you see flickering/glitching")
 @click.option("--simulate", is_flag=True, default=False, help="Render to a browser via WebSocket instead of the physical panel (needs matrix_sim.py + `pip install websockets`)")
-@click.option("--sim-port", type=int, default=8888, help="WebSocket port for --simulate mode")
+@click.option("--sim-port", type=int, default=8888, help="WebSocket port frames are broadcast on, for led-matrix-simulator.html / the settings app's kiosk view. Used in --simulate mode, and also to mirror the real panel when driving actual hardware")
 @click.option("--control-port", type=int, default=8787, help="HTTP port for screen-switching control (POST /next-screen, GET /screen) — the mechanism to use under pm2, where stdin is detached")
 def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_length, parallel, hardware_mapping, gpio_slowdown, simulate, sim_port, control_port):
     # Choose the real hardware driver or the browser simulator based on the flag.
@@ -224,6 +269,13 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
         options.sim_port = sim_port
 
     matrix = RGBMatrix(options=options)
+    if not simulate:
+        # matrix_sim.RGBMatrix already broadcasts on sim_port itself; here
+        # (real hardware) nothing does that by default, so wrap the matrix
+        # to mirror every frame drawn to the physical panel over the same
+        # WebSocket protocol, on the same port.
+        broadcaster = FrameBroadcaster(cols * chain_length, rows * parallel, sim_port, brightness)
+        matrix = _BroadcastingMatrix(matrix, broadcaster)
     canvas = matrix.CreateFrameCanvas()
 
     stop_event = threading.Event()
