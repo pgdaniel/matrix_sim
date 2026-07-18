@@ -7,9 +7,10 @@ from .message import MessageScreen
 from .stocks import StocksScreen
 from .weather import WeatherScreen
 from .weather_cyberpunk import CyberpunkWeatherScreen
+from .wopr import WoprScreen
 
 __all__ = [
     "Screen", "WIDTH", "HEIGHT", "ScreenManager",
     "WeatherScreen", "StocksScreen", "CyberpunkWeatherScreen", "ClockCyberpunkScreen",
-    "AqiCyberpunkScreen", "MessageScreen", "MatrixRainScreen",
+    "AqiCyberpunkScreen", "MessageScreen", "MatrixRainScreen", "WoprScreen",
 ]

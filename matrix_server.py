@@ -107,6 +107,7 @@ from screens import (
     ScreenManager,
     StocksScreen,
     WeatherScreen,
+    WoprScreen,
 )
 from screens.transitions import slide_transition
 
@@ -319,6 +320,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             AqiCyberpunkScreen(latitude, longitude, refresh_minutes),
             MessageScreen(),
             MatrixRainScreen(),
+            WoprScreen(),
         ],
         config_path=Path(__file__).parent / "screen_config.json",
     )
