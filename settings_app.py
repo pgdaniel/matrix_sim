@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-"""Tiny Flask UI for picking which screens are enabled, whether the display
-auto-advances between them, and how many seconds each screen gets before it
-does.
+"""Tiny Flask app for controlling the matrix display: a settings form
+(enabled screens, auto-advance, seconds each) plus a controls-free kiosk
+view for mirroring it on a second screen.
 
-This doesn't touch ScreenManager directly — it's a thin form in front of
-matrix_server.py's control server (GET/POST /config), the same one
+Neither touches ScreenManager directly — both are thin clients of
+matrix_server.py's control server (GET/POST /config, and for the kiosk view,
+matrix_sim.py's WebSocket frame broadcaster), the same one
 led-matrix-simulator.html's "Next screen" button talks to. That means this
 can run as its own process (even its own host) alongside matrix_server.py,
 same as matrix-view does for the simulator page.
@@ -14,10 +15,11 @@ same as matrix-view does for the simulator page.
 """
 
 import os
+from urllib.parse import urlparse
 
 import click
 import requests
-from flask import Flask, redirect, render_template_string, request, url_for
+from flask import Flask, Response, redirect, render_template_string, request, url_for
 
 app = Flask(__name__)
 CONTROL_URL = os.environ.get("CONTROL_URL", "http://localhost:8787")
@@ -52,7 +54,155 @@ PAGE = """
   <label><input type="checkbox" name="auto_advance" {{ 'checked' if config.auto_advance else '' }}> Auto-advance</label>
   <p><button type="submit">Save</button></p>
 </form>
+<p><a href="{{ url_for('kiosk') }}">Kiosk view &#8594;</a> (controls-free, landscape, for mirroring on a second screen)</p>
 {% endif %}
+"""
+
+KIOSK_PAGE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Matrix Display</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#000}
+  /* Forces a landscape layout even if the device (e.g. a phone propped up
+     next to the panel) is held in portrait: in portrait, rotate the whole
+     wrapper 90deg and swap its box to the viewport's height x width. */
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  @media (orientation:portrait){
+    #wrap{
+      top:50%;left:50%;right:auto;bottom:auto;
+      width:100vh;height:100vw;
+      transform:translate(-50%,-50%) rotate(90deg);
+      transform-origin:center center;
+    }
+  }
+  canvas{display:block;image-rendering:pixelated}
+  #status{
+    position:fixed;top:10px;left:10px;
+    font:11px ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.08em;
+    text-transform:uppercase;color:#5f6b7e;pointer-events:none;
+  }
+  #status.err{color:#ff5c5c}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="matrix"></canvas></div>
+<div id="status"></div>
+<script>
+// Controls-free mirror of the live matrix stream — same WebSocket protocol
+// as led-matrix-simulator.html's Live tab, but with none of the
+// simulator's debug controls and no standalone demo mode, so what's on
+// screen here is always exactly what's being broadcast, never
+// independently-fetched stand-in data. Meant to run full-screen/unattended
+// (e.g. an old phone or tablet mounted as a companion display).
+//
+// Only receives frames when the display driver is running in --simulate
+// mode (matrix_sim.py's WebSocket broadcaster) — the real hardware path
+// (rgbmatrix, no --simulate) doesn't broadcast frames anywhere.
+//
+// Defaults to ws://__WS_DEFAULT_HOST__:8888 — the host matrix-display's
+// control server (this page's CONTROL_URL) is on, since its WebSocket
+// broadcaster normally lives on the same host. Override with
+// ?ws=ws://host:port or just ?port=NNNN.
+
+const params = new URLSearchParams(location.search);
+const WS_URL = params.get('ws') || 'ws://__WS_DEFAULT_HOST__:' + (params.get('port') || '8888');
+
+let COLS = 64, ROWS = 32, SCALE = 10;
+const wrap = document.getElementById('wrap');
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+let fb = [];
+
+function clearFB(){ fb = Array.from({length: ROWS}, () => Array.from({length: COLS}, () => [0, 0, 0])); }
+clearFB();
+
+function resize(){
+  SCALE = Math.max(2, Math.floor(Math.min(wrap.clientWidth / COLS, wrap.clientHeight / ROWS)));
+  canvas.width = COLS * SCALE;
+  canvas.height = ROWS * SCALE;
+  render();
+}
+
+function render(){
+  ctx.fillStyle = '#050506';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const r = SCALE * 0.38;
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const p = fb[y][x], pr = p[0], pg = p[1], pb = p[2];
+      if (!pr && !pg && !pb) continue;
+      const cx = x * SCALE + SCALE / 2, cy = y * SCALE + SCALE / 2;
+      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, SCALE * 0.9);
+      glow.addColorStop(0, 'rgba(' + pr + ',' + pg + ',' + pb + ',0.55)');
+      glow.addColorStop(1, 'rgba(' + pr + ',' + pg + ',' + pb + ',0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(cx - SCALE, cy - SCALE, SCALE * 2, SCALE * 2);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgb(' + pr + ',' + pg + ',' + pb + ')';
+      ctx.fill();
+    }
+  }
+}
+
+function loadFrame(bytes, w, h){
+  if (w !== COLS || h !== ROWS) { COLS = w; ROWS = h; clearFB(); resize(); }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 3;
+      fb[y][x] = [bytes[i], bytes[i + 1], bytes[i + 2]];
+    }
+  }
+  render();
+}
+
+function b64ToBytes(b64){
+  const bin = atob(b64), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function setStatus(text, isError){
+  statusEl.textContent = text;
+  statusEl.classList.toggle('err', !!isError);
+}
+
+let ws = null, reconnectTimer = null;
+function connect(){
+  clearTimeout(reconnectTimer);
+  setStatus('connecting to ' + WS_URL + ' ...');
+  try { ws = new WebSocket(WS_URL); }
+  catch (e) { scheduleReconnect(); return; }
+  ws.onclose = scheduleReconnect;
+  ws.onerror = () => setStatus('connection error', true);
+  ws.onmessage = (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (msg.type === 'hello') {
+      COLS = msg.w; ROWS = msg.h; clearFB(); resize();
+    } else if (msg.type === 'frame') {
+      loadFrame(b64ToBytes(msg.data), msg.w, msg.h);
+      setStatus('');
+    }
+  };
+}
+function scheduleReconnect(){
+  setStatus('disconnected - retrying...', true);
+  reconnectTimer = setTimeout(connect, 2000);
+}
+
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
+resize();
+connect();
+</script>
+</body>
+</html>
 """
 
 
@@ -69,6 +219,12 @@ def index():
     except requests.RequestException as e:
         return render_template_string(PAGE, config=None, error=str(e), control_url=CONTROL_URL)
     return render_template_string(PAGE, config=config, error=None, control_url=CONTROL_URL)
+
+
+@app.route("/kiosk")
+def kiosk():
+    default_ws_host = urlparse(CONTROL_URL).hostname or "localhost"
+    return Response(KIOSK_PAGE.replace("__WS_DEFAULT_HOST__", default_ws_host), mimetype="text/html")
 
 
 @app.route("/save", methods=["POST"])
