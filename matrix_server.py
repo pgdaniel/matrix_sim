@@ -100,6 +100,7 @@ import click
 from matrix_sim import FrameBroadcaster, image_to_rgb_bytes
 from screens import (
     AqiCyberpunkScreen,
+    ChangelogCyberpunkScreen,
     ClockCyberpunkScreen,
     CyberpunkWeatherScreen,
     HighTempCyberpunkScreen,
@@ -322,6 +323,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             ClockCyberpunkScreen(),
             AqiCyberpunkScreen(latitude, longitude, refresh_minutes),
             HumidityCyberpunkScreen(latitude, longitude, refresh_minutes),
+            ChangelogCyberpunkScreen(),
             MessageScreen(),
             MatrixRainScreen(),
             WoprScreen(),

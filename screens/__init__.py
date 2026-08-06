@@ -1,5 +1,6 @@
 from .aqi_cyberpunk import AqiCyberpunkScreen
 from .base import HEIGHT, WIDTH, Screen
+from .changelog_cyberpunk import ChangelogCyberpunkScreen
 from .clock_cyberpunk import ClockCyberpunkScreen
 from .high_temp_cyberpunk import HighTempCyberpunkScreen
 from .humidity_cyberpunk import HumidityCyberpunkScreen
@@ -15,5 +16,5 @@ __all__ = [
     "Screen", "WIDTH", "HEIGHT", "ScreenManager",
     "WeatherScreen", "StocksScreen", "CyberpunkWeatherScreen", "ClockCyberpunkScreen",
     "AqiCyberpunkScreen", "HumidityCyberpunkScreen", "HighTempCyberpunkScreen",
-    "MessageScreen", "MatrixRainScreen", "WoprScreen",
+    "ChangelogCyberpunkScreen", "MessageScreen", "MatrixRainScreen", "WoprScreen",
 ]

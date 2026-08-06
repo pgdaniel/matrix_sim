@@ -79,6 +79,11 @@ just adding another file plus one line in `main()`.
 - **`screens/humidity_cyberpunk.py`** — current relative humidity as a
   glowing percentage with a label below, same palette/font/scanlines as the
   other cyberpunk screens, refetched every `--refresh-minutes`.
+- **`screens/changelog_cyberpunk.py`** — the slackware-current changelog,
+  fetched once a day, scrolling upward a pixel at a time while it's the
+  active screen: it advances a little each time the rotation comes around
+  and starts over from the top once it has scrolled through the most recent
+  entries. Same cyberpunk palette/font/scanlines.
 - **`screens/cyberpunk_theme.py`** — not a screen itself; the shared
   palette, font path, scanline helper, and glow-text helper the cyberpunk
   screens all import, so their look stays in sync.
