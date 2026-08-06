@@ -59,6 +59,19 @@ def get_weather(lat, lon):
     return current["temperature_2m"], icon_for_code(current["weather_code"])
 
 
+def get_humidity(lat, lon):
+    resp = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "current": "relative_humidity_2m",
+        },
+        timeout=10,
+    ).json()
+    return resp["current"]["relative_humidity_2m"]
+
+
 def get_aqi(lat, lon):
     resp = requests.get(
         "https://air-quality-api.open-meteo.com/v1/air-quality",

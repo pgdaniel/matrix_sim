@@ -72,6 +72,9 @@ just adding another file plus one line in `main()`.
   scanlines as the other cyberpunk screens. The number glows in a color for
   its severity category (green "GOOD" through maroon "HAZARDOUS"),
   refetched every `--refresh-minutes`.
+- **`screens/humidity_cyberpunk.py`** — current relative humidity as a
+  glowing percentage with a label below, same palette/font/scanlines as the
+  other cyberpunk screens, refetched every `--refresh-minutes`.
 - **`screens/cyberpunk_theme.py`** — not a screen itself; the shared
   palette, font path, scanline helper, and glow-text helper the cyberpunk
   screens all import, so their look stays in sync.

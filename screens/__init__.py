@@ -1,6 +1,7 @@
 from .aqi_cyberpunk import AqiCyberpunkScreen
 from .base import HEIGHT, WIDTH, Screen
 from .clock_cyberpunk import ClockCyberpunkScreen
+from .humidity_cyberpunk import HumidityCyberpunkScreen
 from .manager import ScreenManager
 from .matrix_rain import MatrixRainScreen
 from .message import MessageScreen
@@ -12,5 +13,6 @@ from .wopr import WoprScreen
 __all__ = [
     "Screen", "WIDTH", "HEIGHT", "ScreenManager",
     "WeatherScreen", "StocksScreen", "CyberpunkWeatherScreen", "ClockCyberpunkScreen",
-    "AqiCyberpunkScreen", "MessageScreen", "MatrixRainScreen", "WoprScreen",
+    "AqiCyberpunkScreen", "HumidityCyberpunkScreen", "MessageScreen", "MatrixRainScreen",
+    "WoprScreen",
 ]
