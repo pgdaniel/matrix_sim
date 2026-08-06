@@ -97,8 +97,10 @@ class CyberpunkWeatherScreen(Screen):
         self.refresh_minutes = refresh_minutes
         self.city = None
         self.font = ImageFont.truetype(RETRO_FONT_PATH, 24)
+        self.small_font = ImageFont.truetype(RETRO_FONT_PATH, 11)
         self._lock = threading.Lock()
         self._temp_f = None
+        self._high_f = None
         self._icon_kind = None
 
     def start(self, stop_event, notify_update):
@@ -110,9 +112,10 @@ class CyberpunkWeatherScreen(Screen):
         def updater():
             while not stop_event.is_set():
                 try:
-                    temp_f, icon_kind = get_weather(self.latitude, self.longitude)
+                    temp_f, icon_kind, high_f = get_weather(self.latitude, self.longitude)
                     with self._lock:
                         self._temp_f = temp_f
+                        self._high_f = high_f
                         self._icon_kind = icon_kind
                     notify_update()
                 except Exception as e:
@@ -123,7 +126,7 @@ class CyberpunkWeatherScreen(Screen):
 
     def render(self):
         with self._lock:
-            temp_f, icon_kind = self._temp_f, self._icon_kind
+            temp_f, high_f, icon_kind = self._temp_f, self._high_f, self._icon_kind
         if temp_f is None:
             return None
 
@@ -134,11 +137,18 @@ class CyberpunkWeatherScreen(Screen):
         icon_size = HEIGHT
         _draw_neon_icon(draw, icon_kind, 1, 0, icon_size - 1, icon_size)
 
+        # Right of the icon: current temp on top, the day's high below it.
         text = f"{round(temp_f)}°"
         x0, y0, x1, y1 = self.font.getbbox(text)
-        tw, th = x1 - x0, y1 - y0
+        tw = x1 - x0
         tx = icon_size + max(0, (WIDTH - icon_size - tw) // 2)
-        ty = (HEIGHT - th) // 2 - y0
-        draw_glow_text(draw, (tx, ty), text, self.font)
+        draw_glow_text(draw, (tx, 1 - y0), text, self.font)
+
+        if high_f is not None:
+            high_text = f"HI {round(high_f)}°"
+            hx0, hy0, hx1, hy1 = self.small_font.getbbox(high_text)
+            hw, hh = hx1 - hx0, hy1 - hy0
+            hx = icon_size + max(0, (WIDTH - icon_size - hw) // 2)
+            draw_glow_text(draw, (hx, HEIGHT - hh - 1 - hy0), high_text, self.small_font)
 
         return img

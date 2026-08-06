@@ -64,7 +64,8 @@ just adding another file plus one line in `main()`.
 - **`screens/weather_cyberpunk.py`** — same weather data, retro/synthwave
   theme: a gradient orange-to-magenta sun sliced by horizontal bands, magenta
   cloud outlines, cyan accents, and VT323 (retro terminal font) temperature
-  text with a pink/cyan glow.
+  text with a pink/cyan glow, plus the day's high in a smaller font below
+  the current temp.
 - **`screens/clock_cyberpunk.py`** — current time (`HH:MM`), same
   palette/font/scanlines as the other cyberpunk screens. Ticks its own
   redraw once a second.
