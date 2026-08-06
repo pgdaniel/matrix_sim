@@ -89,6 +89,10 @@ just adding another file plus one line in `main()`.
   screens all import, so their look stays in sync.
 - **`screens/stocks.py`** — stub screen ("STOCKS" / "SOON"); replace
   `render()` with a real quote fetch later.
+- **`screens/mondrian.py`** — generative art: the canvas recursively split
+  into random rectangles separated by thick black lines, mostly white with a
+  few primary red/blue/yellow fills, Piet Mondrian style. A new composition
+  every few seconds while it's the active screen.
 - **`screens/message.py`** — a short text message, "Hello" by default,
   word-wrapped and centered. Settable at runtime via `POST /message` on the
   control server (or `settings_app.py`'s matching route) — kept in memory

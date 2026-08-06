@@ -107,6 +107,7 @@ from screens import (
     HumidityCyberpunkScreen,
     MatrixRainScreen,
     MessageScreen,
+    MondrianScreen,
     ScreenManager,
     StocksScreen,
     WeatherScreen,
@@ -327,6 +328,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             MessageScreen(),
             MatrixRainScreen(),
             WoprScreen(),
+            MondrianScreen(),
         ],
         config_path=Path(__file__).parent / "screen_config.json",
     )
