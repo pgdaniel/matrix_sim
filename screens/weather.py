@@ -51,15 +51,27 @@ def get_weather(lat, lon):
             "latitude": lat,
             "longitude": lon,
             "current": "temperature_2m,weather_code",
+            "temperature_unit": "fahrenheit",
+        },
+        timeout=10,
+    ).json()
+    current = resp["current"]
+    return current["temperature_2m"], icon_for_code(current["weather_code"])
+
+
+def get_high_temp(lat, lon):
+    resp = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={
+            "latitude": lat,
+            "longitude": lon,
             "daily": "temperature_2m_max",
             "forecast_days": 1,
             "temperature_unit": "fahrenheit",
         },
         timeout=10,
     ).json()
-    current = resp["current"]
-    high_f = resp["daily"]["temperature_2m_max"][0]
-    return current["temperature_2m"], icon_for_code(current["weather_code"]), high_f
+    return resp["daily"]["temperature_2m_max"][0]
 
 
 def get_humidity(lat, lon):
@@ -169,7 +181,7 @@ class WeatherScreen(Screen):
         def updater():
             while not stop_event.is_set():
                 try:
-                    temp_f, icon_kind, _high_f = get_weather(self.latitude, self.longitude)
+                    temp_f, icon_kind = get_weather(self.latitude, self.longitude)
                     print(f"{self.city}: {temp_f:.0f}F, {icon_kind}")
                     with self._lock:
                         self._temp_f = temp_f
