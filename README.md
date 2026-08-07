@@ -13,6 +13,7 @@ hardware or to a browser for local development.
 | `matrix_sim.py` | Drop-in stand-in for `rgbmatrix` that streams frames to a browser over WebSocket instead of a physical panel |
 | `led-matrix-simulator.html` | Browser page that renders the streamed frames as a virtual LED panel |
 | `settings_app.py` | Tiny Flask UI for enabled screens / auto-advance / per-screen seconds (see below) |
+| `audio_sender.py` | Runs on the computer playing the audio; captures the desktop output with `parec` and streams it as raw PCM over TCP to the spectrum screen (see below) |
 | `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
 | `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
 | `MatrixRainKana.ttf` | Katakana/digits/A-Z subset of Noto Sans Mono CJK JP used by `screens/matrix_rain.py` (OFL-licensed, see `MatrixRainKana-OFL.txt`) |
@@ -101,6 +102,26 @@ just adding another file plus one line in `main()`.
   curl -X POST http://localhost:8787/message \
       -H 'Content-Type: application/json' -d '{"msg": "on my way"}'
   ```
+- **`screens/spectrum.py`** — audio spectrum analyzer: 16 log-spaced
+  frequency bars (bass left, treble right) with falling peak caps, same
+  cyberpunk palette/scanlines. The panel has no audio input of its own, so
+  the PCM comes in over the network — run `audio_sender.py` on the
+  computer whose desktop audio you want to visualize (it captures the
+  PipeWire/PulseAudio monitor of the default sink with `parec` and
+  forwards raw s16le/48 kHz/mono PCM); the screen listens for it on
+  `--audio-port` (default 8788):
+
+  ```
+  python3 audio_sender.py 192.168.1.160           # the Pi's address
+  python3 audio_sender.py pi.lan --source <name>  # capture something other than desktop output
+  ```
+
+  The sender needs `parec` (pipewire-pulse or pulseaudio-utils) but no
+  Python packages; the FFT runs on the receiving side and needs `numpy`
+  in the venv `matrix_server.py` runs from (it's in requirements.txt) —
+  if it's missing, this screen shows "NO NUMPY" instead of taking the
+  display down. With no sender connected for a couple of seconds the
+  screen shows a dim "NO SIGNAL".
 
 Switch screens two ways:
 
@@ -229,7 +250,8 @@ sudo journalctl -u matrix-server -u matrix-settings -f       # check both came u
 
 `matrix-settings.service` needs `flask` in the Pi's `venv` (see
 `requirements.txt`) — install it there the same way as any other dependency
-change.
+change. The spectrum screen likewise needs `numpy` in that venv (also in
+`requirements.txt`); prebuilt aarch64/piwheels wheels mean no compilation.
 
 If replacing an older `weather-matrix.service`:
 
@@ -263,6 +285,7 @@ separate, pre-existing issue this update doesn't address.
 | Port | What |
 |---|---|
 | `8787` | HTTP control server — switch/query the active screen, get/set screen settings (`/config`) |
+| `8788` | TCP — raw PCM audio from `audio_sender.py` into the spectrum screen (`--audio-port`) |
 | `8888` | WebSocket stream of the matrix framebuffer (`--sim-port`, simulate mode only) |
 | `8080` | `matrix-view`'s file server for `led-matrix-simulator.html` |
 | `8789` | `settings_app.py`'s screen-settings UI |
