@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
-"""Stream this machine's desktop audio to the matrix "spectrum" screen.
+"""Stream this machine's desktop audio to the matrix's audio-reactive
+screens (spectrum analyzer and oscilloscope).
 
 Captures the monitor of the default audio sink (everything playing through
 the speakers/headphones) with parec, and forwards the raw PCM — s16le mono
-at 48 kHz — over TCP to the spectrum screen's listener on the machine
+at 48 kHz — over TCP to one of those screens' listeners on the machine
 running matrix_server.py (the Pi). Reconnects with backoff whenever the
 connection or parec drops. Stop with Ctrl-C.
 
-    python3 audio_sender.py 192.168.1.160
-    python3 audio_sender.py pi.lan --port 8788
+Each screen has its own listener/port (spectrum: 8788, oscilloscope: 8790),
+and each sender process feeds exactly one — run a second instance if you
+want both screens live at once:
+
+    python3 audio_sender.py 192.168.1.160                  # spectrum (port 8788)
+    python3 audio_sender.py pi.lan --port 8790              # oscilloscope
     python3 audio_sender.py pi.lan --source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor
 
 Requires parec (pipewire-pulse or PulseAudio's pulseaudio-utils) on this
-machine. No third-party Python packages needed here — the FFT happens on
-the receiving end. The PCM format must match screens/spectrum.py
-(SAMPLE_RATE / s16le / mono); don't change the parec arguments below
-without changing it there too.
+machine. No third-party Python packages needed here — the FFT/waveform
+work happens on the receiving end. The PCM format must match
+screens/spectrum.py and screens/oscope.py (SAMPLE_RATE / s16le / mono);
+don't change the parec arguments below without changing those too.
 """
 
 import argparse
@@ -32,7 +37,8 @@ def main():
     )
     parser.add_argument("host", help="host running matrix_server.py (e.g. the Pi's IP)")
     parser.add_argument("--port", type=int, default=8788,
-                        help="spectrum screen's listener port (default 8788)")
+                        help="target screen's listener port (default 8788, the spectrum "
+                             "screen's; use 8790 for the oscilloscope screen)")
     parser.add_argument("--source", default="@DEFAULT_MONITOR@",
                         help="PulseAudio source to capture (default: @DEFAULT_MONITOR@ — "
                              "the monitor of the default sink, i.e. desktop output. "
