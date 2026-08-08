@@ -13,7 +13,7 @@ hardware or to a browser for local development.
 | `matrix_sim.py` | Drop-in stand-in for `rgbmatrix` that streams frames to a browser over WebSocket instead of a physical panel |
 | `led-matrix-simulator.html` | Browser page that renders the streamed frames as a virtual LED panel |
 | `settings_app.py` | Tiny Flask UI for enabled screens / auto-advance / per-screen seconds (see below) |
-| `audio_sender.py` | Runs on the computer playing the audio; captures the desktop output with `parec` and streams it as raw PCM over TCP to the spectrum or oscilloscope screen (see below) |
+| `audio_sender.py` | Runs on the computer playing the audio; captures the desktop output with `parec` and streams it as raw PCM over TCP to the spectrum, oscilloscope, or audio-reactive Mondrian screen (see below) |
 | `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
 | `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
 | `MatrixRainKana.ttf` | Katakana/digits/A-Z subset of Noto Sans Mono CJK JP used by `screens/matrix_rain.py` (OFL-licensed, see `MatrixRainKana-OFL.txt`) |
@@ -134,6 +134,23 @@ just adding another file plus one line in `main()`.
 
   ```
   python3 audio_sender.py 192.168.1.160 --port 8790
+  ```
+
+  Same `numpy` requirement and "NO NUMPY"/"NO SIGNAL" fallbacks as the
+  spectrum screen.
+- **`screens/mondrian_viz.py`** — audio-reactive Piet Mondrian composition:
+  black grid lines dividing the canvas into white panes plus a red, a blue,
+  and a yellow block, same palette as `screens/mondrian.py` but driven by
+  real bass/mid/treble energy from desktop audio instead of random —
+  divider positions track each band's level, panes rotate through
+  red/blue/yellow over time and flash brighter on strong transients. Ported
+  from the `mondrian` pattern in the `soma-zig` terminal music player's
+  visualizer. A different screen from `screens/mondrian.py` (which stays
+  generative, no audio) — this one is `mondrian-viz`. Own listener, own
+  `audio_sender.py` instance, `--mondrian-viz-port` (default 8791):
+
+  ```
+  python3 audio_sender.py 192.168.1.160 --port 8791
   ```
 
   Same `numpy` requirement and "NO NUMPY"/"NO SIGNAL" fallbacks as the
@@ -266,7 +283,7 @@ sudo journalctl -u matrix-server -u matrix-settings -f       # check both came u
 
 `matrix-settings.service` needs `flask` in the Pi's `venv` (see
 `requirements.txt`) — install it there the same way as any other dependency
-change. The spectrum and oscilloscope screens likewise need `numpy` in that venv (also in
+change. The spectrum, oscilloscope, and audio-reactive Mondrian screens likewise need `numpy` in that venv (also in
 `requirements.txt`); prebuilt aarch64/piwheels wheels mean no compilation.
 
 If replacing an older `weather-matrix.service`:
@@ -306,6 +323,7 @@ separate, pre-existing issue this update doesn't address.
 | `8080` | `matrix-view`'s file server for `led-matrix-simulator.html` |
 | `8789` | `settings_app.py`'s screen-settings UI |
 | `8790` | TCP — raw PCM audio from `audio_sender.py` into the oscilloscope screen (`--oscope-port`) |
+| `8791` | TCP — raw PCM audio from `audio_sender.py` into the audio-reactive Mondrian screen (`--mondrian-viz-port`) |
 
 ## Troubleshooting
 

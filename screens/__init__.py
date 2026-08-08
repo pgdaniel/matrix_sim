@@ -8,6 +8,7 @@ from .manager import ScreenManager
 from .matrix_rain import MatrixRainScreen
 from .message import MessageScreen
 from .mondrian import MondrianScreen
+from .mondrian_viz import MondrianVizScreen
 from .oscope import OscopeScreen
 from .spectrum import SpectrumScreen
 from .stocks import StocksScreen
@@ -20,5 +21,5 @@ __all__ = [
     "WeatherScreen", "StocksScreen", "CyberpunkWeatherScreen", "ClockCyberpunkScreen",
     "AqiCyberpunkScreen", "HumidityCyberpunkScreen", "HighTempCyberpunkScreen",
     "ChangelogCyberpunkScreen", "MessageScreen", "MatrixRainScreen", "WoprScreen",
-    "MondrianScreen", "SpectrumScreen", "OscopeScreen",
+    "MondrianScreen", "SpectrumScreen", "OscopeScreen", "MondrianVizScreen",
 ]

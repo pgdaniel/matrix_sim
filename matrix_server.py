@@ -108,6 +108,7 @@ from screens import (
     MatrixRainScreen,
     MessageScreen,
     MondrianScreen,
+    MondrianVizScreen,
     OscopeScreen,
     ScreenManager,
     SpectrumScreen,
@@ -286,7 +287,8 @@ def make_control_server(screens, port):
 @click.option("--control-port", type=int, default=8787, help="HTTP port for screen-switching control (POST /next-screen, GET /screen) — the mechanism to use under pm2, where stdin is detached")
 @click.option("--audio-port", type=int, default=8788, help="TCP port the spectrum screen listens on for raw PCM from audio_sender.py")
 @click.option("--oscope-port", type=int, default=8790, help="TCP port the oscilloscope screen listens on for raw PCM from audio_sender.py")
-def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_length, parallel, hardware_mapping, gpio_slowdown, simulate, sim_port, control_port, audio_port, oscope_port):
+@click.option("--mondrian-viz-port", type=int, default=8791, help="TCP port the audio-reactive Mondrian screen listens on for raw PCM from audio_sender.py")
+def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_length, parallel, hardware_mapping, gpio_slowdown, simulate, sim_port, control_port, audio_port, oscope_port, mondrian_viz_port):
     # Choose the real hardware driver or the browser simulator based on the flag.
     # Both expose the same RGBMatrix / RGBMatrixOptions API, so nothing below
     # this point needs to change.
@@ -335,6 +337,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             MondrianScreen(),
             SpectrumScreen(audio_port),
             OscopeScreen(oscope_port),
+            MondrianVizScreen(mondrian_viz_port),
         ],
         config_path=Path(__file__).parent / "screen_config.json",
     )
