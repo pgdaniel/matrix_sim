@@ -167,6 +167,7 @@ Switch screens two ways:
   ```
   curl -X POST http://localhost:8787/next-screen   # switch screen
   curl http://localhost:8787/screen                # check current screen
+  curl -X POST http://localhost:8787/screen/weather  # jump straight to a screen
   ```
 
   `led-matrix-simulator.html`'s Live tab also has a "Next screen" button

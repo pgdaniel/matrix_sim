@@ -44,6 +44,19 @@ class ScreenManager:
     def get_screen(self, name):
         return self._by_name.get(name)
 
+    def show_screen(self, name):
+        """Switch directly to the named screen (even if it's disabled for
+        auto-advance — a manual pick is explicit). Returns False for unknown
+        names."""
+        with self._lock:
+            screen = self._by_name.get(name)
+            if screen is None:
+                return False
+            self._index = self.screens.index(screen)
+        self.transition_pending.set()
+        self.dirty.set()
+        return True
+
     def _enabled_in_order(self):
         """self.screens filtered down to enabled ones, falling back to all
         of them if enabled somehow ends up empty."""

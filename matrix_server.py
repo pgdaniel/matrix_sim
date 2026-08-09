@@ -223,6 +223,13 @@ def make_control_server(screens, port):
                 screens.next_screen()
                 print(f"[display] switched to {screens.current.name} screen")
                 self._reply(f"switched to {screens.current.name}")
+            elif self.path.startswith("/screen/"):
+                name = self.path[len("/screen/"):]
+                if screens.show_screen(name):
+                    print(f"[display] switched to {name} screen")
+                    self._reply(f"switched to {name}")
+                else:
+                    self._reply_json({"error": f"unknown screen {name!r}"}, status=404)
             elif self.path == "/config":
                 length = int(self.headers.get("Content-Length", 0))
                 try:
