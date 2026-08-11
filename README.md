@@ -207,16 +207,29 @@ Settings are saved to `screen_config.json` (gitignored) next to
 
 ## Running under pm2
 
-`ecosystem.config.js` defines three apps:
+`ecosystem.config.js` defines six apps:
 
 | app | what | port(s) |
 |---|---|---|
 | `matrix-display` | the weather/stocks script, `--simulate` mode by default | control `8787`, matrix stream `8888` |
 | `matrix-view` | `python3 -m http.server`, serves this directory | `8080` |
 | `matrix-settings` | `settings_app.py`, the screen-settings UI above | `8789` |
+| `audio-spectrum` | `audio_sender.py` → the Pi's spectrum listener | `8788` on the Pi |
+| `audio-oscope` | `audio_sender.py --port 8790` → the Pi's oscope listener | `8790` on the Pi |
+| `audio-mondrian` | `audio_sender.py --port 8791` → the Pi's Mondrian listener | `8791` on the Pi |
+
+The three `audio-*` apps capture this machine's desktop audio and stream it
+to the real panel on the Pi (192.168.1.160) — they're for driving the
+hardware's audio-reactive screens during local dev, and ignore
+matrix-display's `--simulate` mode. To start only the senders (when the Pi is
+the display and you don't need the local sim apps):
 
 ```
-pm2 start ecosystem.config.js     # start all three
+pm2 start ecosystem.config.js --only audio-spectrum,audio-oscope,audio-mondrian
+```
+
+```
+pm2 start ecosystem.config.js     # start all
 pm2 stop matrix-display           # stop one
 pm2 restart matrix-display
 pm2 logs matrix-display

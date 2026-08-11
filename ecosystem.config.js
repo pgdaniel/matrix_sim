@@ -37,5 +37,39 @@ module.exports = {
       autorestart: true,
       watch: false,
     },
+    // Desktop-audio senders for the three audio-reactive screens. These run
+    // HERE (the machine playing the sound) and stream raw PCM to the real
+    // panel on the Pi — they ignore matrix-display's --simulate mode. Each
+    // screen has its own listener port, so one sender per screen. The
+    // senders need no third-party Python packages (system python3), and
+    // reconnect on their own when the Pi or network drops. Start just these
+    // with: pm2 start ecosystem.config.js --only audio-spectrum,audio-oscope,audio-mondrian
+    {
+      name: "audio-spectrum",
+      script: "audio_sender.py",
+      interpreter: "python3",
+      args: "192.168.1.160", // spectrum listener, port 8788
+      cwd: __dirname,
+      autorestart: true,
+      watch: false,
+    },
+    {
+      name: "audio-oscope",
+      script: "audio_sender.py",
+      interpreter: "python3",
+      args: "192.168.1.160 --port 8790",
+      cwd: __dirname,
+      autorestart: true,
+      watch: false,
+    },
+    {
+      name: "audio-mondrian",
+      script: "audio_sender.py",
+      interpreter: "python3",
+      args: "192.168.1.160 --port 8791",
+      cwd: __dirname,
+      autorestart: true,
+      watch: false,
+    },
   ],
 };
