@@ -12,7 +12,8 @@ hardware or to a browser for local development.
 | `screens/` | Each screen is self-contained here; see below |
 | `matrix_sim.py` | Drop-in stand-in for `rgbmatrix` that streams frames to a browser over WebSocket instead of a physical panel |
 | `led-matrix-simulator.html` | Browser page that renders the streamed frames as a virtual LED panel |
-| `settings_app.py` | Tiny Flask UI for enabled screens / auto-advance / per-screen seconds (see below) |
+| `settings_app.py` | Tiny Flask UI for enabled screens / auto-advance / per-screen seconds / MQTT control settings (see below) |
+| `mqtt_control.py` | MQTT control bus — subscribes to `<device>/#` on a LAN broker and turns messages into screen switches (see "MQTT control" below) |
 | `audio_sender.py` | Runs on the computer playing the audio; captures the desktop output with `parec` and streams it as raw PCM over TCP to the spectrum, oscilloscope, or audio-reactive Mondrian screen (see below) |
 | `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
 | `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
@@ -205,6 +206,46 @@ curl -X POST http://localhost:8787/config \
 Settings are saved to `screen_config.json` (gitignored) next to
 `matrix_server.py`, so they survive a restart.
 
+## MQTT control
+
+`matrix_server.py` can also subscribe to an MQTT broker on your LAN and turn
+messages into screen switches — the same things the HTTP control server
+does, but reachable from anything that can publish (Home Assistant, a shell
+script, `mosquitto_pub`). Topics are `<device>/<action>` (device defaults to
+`display1`):
+
+| Topic | Effect |
+|---|---|
+| `display1/weather` | switch to the named screen (any screen name works, even ones disabled for auto-advance; payload ignored) |
+| `display1/next` | advance to the next enabled screen |
+| `display1/message` | set the message screen's text from the payload, then show it |
+
+```
+mosquitto_pub -h 192.168.1.10 -t display1/weather -m x
+mosquitto_pub -h 192.168.1.10 -t display1/message -m "on my way"
+```
+
+Unknown actions are logged and ignored. A retained message re-fires every
+time the display (re)connects, so it resumes whatever was last commanded
+after a restart — clear one with `mosquitto_pub -t <topic> -r -n` if that's
+not what you want.
+
+Configure it in the settings UI (`http://<host>:8789`) or directly:
+
+```
+curl -X POST http://localhost:8787/config \
+    -H 'Content-Type: application/json' \
+    -d '{"mqtt": {"enabled": true, "host": "192.168.1.10", "port": 1883,
+                  "device": "display1", "username": "", "password": ""}}'
+```
+
+Settings live in the `"mqtt"` section of `screen_config.json` (gitignored),
+take effect immediately (the client reconnects on change), and survive a
+restart. Plain TCP only, no TLS — keep it on the LAN. The connection is
+outbound from the display to the broker; no new listening port. Needs
+`paho-mqtt` in the venv (it's in `requirements.txt`); if it's missing the
+display runs fine and just logs that MQTT control is disabled.
+
 ## Running under pm2
 
 `ecosystem.config.js` defines six apps:
@@ -299,6 +340,7 @@ sudo journalctl -u matrix-server -u matrix-settings -f       # check both came u
 `requirements.txt`) — install it there the same way as any other dependency
 change. The spectrum, oscilloscope, and audio-reactive Mondrian screens likewise need `numpy` in that venv (also in
 `requirements.txt`); prebuilt aarch64/piwheels wheels mean no compilation.
+MQTT control likewise needs `paho-mqtt` (pure Python, no compilation).
 
 If replacing an older `weather-matrix.service`:
 

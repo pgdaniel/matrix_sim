@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 """Tiny Flask app for controlling the matrix display: a settings form
-(enabled screens, auto-advance, seconds each), a controls-free kiosk view
-for mirroring it on a second screen, and a POST /message endpoint for
-setting the "message" screen's text.
+(enabled screens, auto-advance, seconds each, MQTT control settings), a
+controls-free kiosk view for mirroring it on a second screen, and a
+POST /message endpoint for setting the "message" screen's text.
 
 None of these touch ScreenManager directly — all are thin clients of
 matrix_server.py's control server (GET/POST /config, POST /message, and for
@@ -54,6 +54,19 @@ PAGE = """
     {% endfor %}
   </table>
   <label><input type="checkbox" name="auto_advance" {{ 'checked' if config.auto_advance else '' }}> Auto-advance</label>
+  <h2>MQTT control</h2>
+  <p>Publish to <code>&lt;device&gt;/&lt;screen&gt;</code> (e.g. <code>display1/weather</code>) to switch screens,
+     <code>&lt;device&gt;/next</code> to advance, or <code>&lt;device&gt;/message</code> with text in the payload
+     to set and show the message screen. No TLS; the password is stored in the display's
+     <code>screen_config.json</code>.</p>
+  <table>
+    <tr><td>Enabled</td><td><input type="checkbox" name="mqtt_enabled" {{ 'checked' if config.mqtt.enabled else '' }}></td></tr>
+    <tr><td>Broker host</td><td><input type="text" name="mqtt_host" value="{{ config.mqtt.host }}" placeholder="192.168.1.10"></td></tr>
+    <tr><td>Port</td><td><input type="number" min="1" max="65535" name="mqtt_port" value="{{ config.mqtt.port }}"></td></tr>
+    <tr><td>Device</td><td><input type="text" name="mqtt_device" value="{{ config.mqtt.device }}"></td></tr>
+    <tr><td>Username</td><td><input type="text" name="mqtt_username" value="{{ config.mqtt.username }}"></td></tr>
+    <tr><td>Password</td><td><input type="password" name="mqtt_password" value="{{ config.mqtt.password }}"></td></tr>
+  </table>
   <p><button type="submit">Save</button></p>
 </form>
 <p><a href="{{ url_for('kiosk') }}">Kiosk view &#8594;</a> (controls-free, landscape, for mirroring on a second screen)</p>
@@ -269,10 +282,31 @@ def save():
             "enabled": enabled,
             "durations": durations,
             "auto_advance": "auto_advance" in request.form,
+            "mqtt": mqtt_from_form(request.form),
         },
         timeout=3,
     )
     return redirect(url_for("index"))
+
+
+def mqtt_from_form(form):
+    """MQTT control settings from the settings form — merged into the
+    "mqtt" section of the display's screen_config.json (see mqtt_control.py
+    for what the fields mean)."""
+    try:
+        port = int(form.get("mqtt_port", "") or 1883)
+        if not 1 <= port <= 65535:
+            port = 1883
+    except ValueError:
+        port = 1883
+    return {
+        "enabled": "mqtt_enabled" in form,
+        "host": form.get("mqtt_host", "").strip(),
+        "port": port,
+        "device": form.get("mqtt_device", "").strip() or "display1",
+        "username": form.get("mqtt_username", ""),
+        "password": form.get("mqtt_password", ""),
+    }
 
 
 @click.command

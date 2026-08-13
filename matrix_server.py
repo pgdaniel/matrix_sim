@@ -98,6 +98,7 @@ from pathlib import Path
 import click
 
 from matrix_sim import FrameBroadcaster, image_to_rgb_bytes
+from mqtt_control import MqttController
 from screens import (
     AqiCyberpunkScreen,
     ChangelogCyberpunkScreen,
@@ -172,12 +173,15 @@ def keyboard_listener(screens, stop_event):
             print(f"[display] switched to {screens.current.name} screen")
 
 
-def make_control_server(screens, port):
+def make_control_server(screens, port, mqtt_controller=None):
     """A tiny HTTP server for switching screens without a terminal — the
     mechanism a pm2-managed (or otherwise headless) process should use.
 
         curl -X POST http://<host>:<port>/next-screen
         curl http://<host>:<port>/screen
+
+    `mqtt_controller` (optional) gets any "mqtt" section posted to /config
+    forwarded to it, so broker settings take effect without a restart.
     """
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
@@ -241,7 +245,10 @@ def make_control_server(screens, port):
                     enabled=body.get("enabled"),
                     durations=body.get("durations"),
                     auto_advance=body.get("auto_advance"),
+                    mqtt=body.get("mqtt"),
                 )
+                if mqtt_controller is not None and isinstance(body.get("mqtt"), dict):
+                    mqtt_controller.update_config(body["mqtt"])
                 print(f"[display] config updated: {screens.get_config()}")
                 self._reply_json(screens.get_config())
             elif self.path == "/message":
@@ -350,7 +357,9 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
     )
     screens.start_all(stop_event)
 
-    control_server = make_control_server(screens, control_port)
+    mqtt_controller = MqttController(screens, screens.mqtt)
+
+    control_server = make_control_server(screens, control_port, mqtt_controller)
     threading.Thread(target=control_server.serve_forever, daemon=True).start()
     print(f"Control server on http://0.0.0.0:{control_port} - POST /next-screen to switch screens")
 
@@ -395,6 +404,7 @@ def main(latitude, longitude, refresh_minutes, brightness, rows, cols, chain_len
             time.sleep(0.05)
     finally:
         stop_event.set()
+        mqtt_controller.stop()
         control_server.shutdown()
         if stdin_is_tty:
             termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_term_settings)

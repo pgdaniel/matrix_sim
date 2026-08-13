@@ -4,3 +4,4 @@ pillow
 websockets
 flask
 numpy
+paho-mqtt

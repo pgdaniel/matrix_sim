@@ -4,6 +4,18 @@ from pathlib import Path
 
 DEFAULT_DURATION = 10  # seconds a screen gets before auto-advance moves on
 
+# Shape of the "mqtt" config section — an opaque blob as far as the manager
+# is concerned (mqtt_control.MqttController interprets it); the manager just
+# persists it in screen_config.json and round-trips it through /config.
+DEFAULT_MQTT = {
+    "enabled": False,
+    "host": "",
+    "port": 1883,
+    "device": "display1",
+    "username": "",
+    "password": "",
+}
+
 
 class ScreenManager:
     """Holds a list of Screen instances, tracks which one is active, and
@@ -34,6 +46,7 @@ class ScreenManager:
         self.enabled = set(self._by_name)
         self.durations = {name: DEFAULT_DURATION for name in self._by_name}
         self.auto_advance = False
+        self.mqtt = dict(DEFAULT_MQTT)
         self._load_config()
 
     @property
@@ -87,12 +100,14 @@ class ScreenManager:
                 ],
                 "auto_advance": self.auto_advance,
                 "current": self.screens[self._index].name,
+                "mqtt": dict(self.mqtt),
             }
 
-    def set_config(self, enabled=None, durations=None, auto_advance=None):
+    def set_config(self, enabled=None, durations=None, auto_advance=None, mqtt=None):
         """Update any subset of: which screens are enabled (iterable of
-        names), per-screen durations (dict of name -> seconds), and whether
-        auto-advance is on. Unknown screen names are ignored."""
+        names), per-screen durations (dict of name -> seconds), whether
+        auto-advance is on, and the mqtt section (dict, merged — unknown
+        keys dropped). Unknown screen names are ignored."""
         with self._lock:
             if enabled is not None:
                 new_enabled = {n for n in enabled if n in self._by_name}
@@ -106,6 +121,8 @@ class ScreenManager:
                         self.durations[name] = seconds
             if auto_advance is not None:
                 self.auto_advance = bool(auto_advance)
+            if isinstance(mqtt, dict):
+                self.mqtt.update({k: v for k, v in mqtt.items() if k in DEFAULT_MQTT})
         self.transition_pending.set()
         self.dirty.set()
         self._save_config()
@@ -159,6 +176,9 @@ class ScreenManager:
             if name in self._by_name and isinstance(seconds, (int, float)) and seconds > 0:
                 self.durations[name] = seconds
         self.auto_advance = bool(data.get("auto_advance", self.auto_advance))
+        mqtt = data.get("mqtt")
+        if isinstance(mqtt, dict):
+            self.mqtt.update({k: v for k, v in mqtt.items() if k in DEFAULT_MQTT})
 
     def _save_config(self):
         if not self.config_path:
@@ -167,6 +187,7 @@ class ScreenManager:
             "enabled": sorted(self.enabled),
             "durations": self.durations,
             "auto_advance": self.auto_advance,
+            "mqtt": self.mqtt,
         }
         try:
             self.config_path.write_text(json.dumps(data, indent=2))
