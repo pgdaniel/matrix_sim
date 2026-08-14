@@ -113,7 +113,7 @@ just adding another file plus one line in `main()`.
   `--audio-port` (default 8788):
 
   ```
-  python3 audio_sender.py 192.168.1.160           # the Pi's address
+  python3 audio_sender.py 192.168.1.109           # the Pi's address
   python3 audio_sender.py pi.lan --source <name>  # capture something other than desktop output
   ```
 
@@ -134,7 +134,7 @@ just adding another file plus one line in `main()`.
   the spectrum screen if you want both live at once:
 
   ```
-  python3 audio_sender.py 192.168.1.160 --port 8790
+  python3 audio_sender.py 192.168.1.109 --port 8790
   ```
 
   Same `numpy` requirement and "NO NUMPY"/"NO SIGNAL" fallbacks as the
@@ -151,7 +151,7 @@ just adding another file plus one line in `main()`.
   `audio_sender.py` instance, `--mondrian-viz-port` (default 8791):
 
   ```
-  python3 audio_sender.py 192.168.1.160 --port 8791
+  python3 audio_sender.py 192.168.1.109 --port 8791
   ```
 
   Same `numpy` requirement and "NO NUMPY"/"NO SIGNAL" fallbacks as the
@@ -260,9 +260,20 @@ display runs fine and just logs that MQTT control is disabled.
 | `audio-mondrian` | `audio_sender.py --port 8791` → the Pi's Mondrian listener | `8791` on the Pi |
 
 The three `audio-*` apps capture this machine's desktop audio and stream it
-to the real panel on the Pi (192.168.1.160) — they're for driving the
+to the real panel on the Pi (192.168.1.109) — they're for driving the
 hardware's audio-reactive screens during local dev, and ignore
-matrix-display's `--simulate` mode. To start only the senders (when the Pi is
+matrix-display's `--simulate` mode. The Pi's address comes from
+`MATRIX_HOST` (interpolated into their args at `pm2 start` time), so when it
+changes you don't edit this file — re-create the senders with the new value
+(`pm2 restart` does not re-read the ecosystem file):
+
+```
+pm2 delete audio-spectrum audio-oscope audio-mondrian
+MATRIX_HOST=192.168.1.200 pm2 start ecosystem.config.js --only audio-spectrum,audio-oscope,audio-mondrian
+```
+
+Run `audio_sender.py` by hand and it reads `MATRIX_HOST` itself (explicit
+host argument beats the env var). To start only the senders (when the Pi is
 the display and you don't need the local sim apps):
 
 ```
@@ -313,7 +324,7 @@ to the Pi's `WorkingDirectory` (`/home/pi` by default in the unit file) with
 `deploy.sh`:
 
 ```
-./deploy.sh                    # rsyncs to pi@192.168.1.160:/home/pi/
+./deploy.sh                    # rsyncs to pi@192.168.1.109:/home/pi/
 PI_HOST=pi@<other-ip> ./deploy.sh   # different host
 ./deploy.sh --delete           # also remove files on the Pi no longer present locally
 ```

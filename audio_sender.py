@@ -12,10 +12,15 @@ Each screen has its own listener/port (spectrum: 8788, oscilloscope: 8790,
 Mondrian: 8791), and each sender process feeds exactly one — run a second
 (or third) instance if you want more than one screen live at once:
 
-    python3 audio_sender.py 192.168.1.160                  # spectrum (port 8788)
+    python3 audio_sender.py 192.168.1.109                  # spectrum (port 8788)
     python3 audio_sender.py pi.lan --port 8790              # oscilloscope
     python3 audio_sender.py pi.lan --port 8791              # audio-reactive Mondrian
     python3 audio_sender.py pi.lan --source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor
+
+The host argument is optional: if omitted, the MATRIX_HOST environment
+variable is used, falling back to DEFAULT_HOST below — so when the Pi's IP
+changes you can export MATRIX_HOST instead of editing pm2's
+ecosystem.config.js (which honors the same variable).
 
 Requires parec (pipewire-pulse or PulseAudio's pulseaudio-utils) on this
 machine. No third-party Python packages needed here — the FFT/waveform
@@ -26,18 +31,24 @@ without changing those too.
 """
 
 import argparse
+import os
 import shutil
 import socket
 import subprocess
 import sys
 import time
 
+DEFAULT_HOST = "192.168.1.109"  # the Pi; MATRIX_HOST env var overrides
+
 
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("host", help="host running matrix_server.py (e.g. the Pi's IP)")
+    parser.add_argument("host", nargs="?", default=None,
+                        help="host running matrix_server.py (e.g. the Pi's IP). "
+                             "Optional: falls back to $MATRIX_HOST, then the "
+                             "built-in default " + DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=8788,
                         help="target screen's listener port (default 8788, the spectrum "
                              "screen's; use 8790 for the oscilloscope screen, 8791 for "
@@ -49,6 +60,7 @@ def main():
     parser.add_argument("--retry-seconds", type=float, default=2.0,
                         help="delay between reconnect attempts (default 2)")
     args = parser.parse_args()
+    host = args.host or os.environ.get("MATRIX_HOST") or DEFAULT_HOST
 
     if shutil.which("parec") is None:
         sys.exit("parec not found — install pipewire-pulse or pulseaudio-utils.")
@@ -57,13 +69,13 @@ def main():
     try:
         while True:
             try:
-                sock = socket.create_connection((args.host, args.port), timeout=5)
+                sock = socket.create_connection((host, args.port), timeout=5)
             except OSError as e:
-                print(f"connect to {args.host}:{args.port} failed: {e}; "
+                print(f"connect to {host}:{args.port} failed: {e}; "
                       f"retrying in {args.retry_seconds:g}s")
                 time.sleep(args.retry_seconds)
                 continue
-            print(f"connected to {args.host}:{args.port}; capturing '{args.source}'")
+            print(f"connected to {host}:{args.port}; capturing '{args.source}'")
 
             parec = subprocess.Popen(
                 ["parec", f"--device={args.source}", "--format=s16le",

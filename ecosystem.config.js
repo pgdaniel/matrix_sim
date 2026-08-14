@@ -1,3 +1,15 @@
+// IP/hostname of the Pi running matrix_server.py, for the apps that talk to
+// it (the audio senders). Override without editing this file:
+//
+//   MATRIX_HOST=192.168.1.200 pm2 start ecosystem.config.js
+//
+// Note pm2 evaluates this file at `pm2 start` time — `pm2 restart` does NOT
+// re-read it, so after changing MATRIX_HOST re-create the senders:
+// pm2 delete audio-spectrum audio-oscope audio-mondrian && MATRIX_HOST=... pm2 start ecosystem.config.js --only audio-spectrum,audio-oscope,audio-mondrian
+// (audio_sender.py also reads MATRIX_HOST itself when launched without a
+// host argument, e.g. under other process managers.)
+const MATRIX_HOST = process.env.MATRIX_HOST || "192.168.1.109";
+
 module.exports = {
   apps: [
     {
@@ -48,7 +60,7 @@ module.exports = {
       name: "audio-spectrum",
       script: "audio_sender.py",
       interpreter: "python3",
-      args: "192.168.1.160", // spectrum listener, port 8788
+      args: MATRIX_HOST, // spectrum listener, port 8788
       cwd: __dirname,
       autorestart: true,
       watch: false,
@@ -57,7 +69,7 @@ module.exports = {
       name: "audio-oscope",
       script: "audio_sender.py",
       interpreter: "python3",
-      args: "192.168.1.160 --port 8790",
+      args: `${MATRIX_HOST} --port 8790`,
       cwd: __dirname,
       autorestart: true,
       watch: false,
@@ -66,7 +78,7 @@ module.exports = {
       name: "audio-mondrian",
       script: "audio_sender.py",
       interpreter: "python3",
-      args: "192.168.1.160 --port 8791",
+      args: `${MATRIX_HOST} --port 8791`,
       cwd: __dirname,
       autorestart: true,
       watch: false,

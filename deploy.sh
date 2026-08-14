@@ -5,7 +5,7 @@
 # /home/pi).
 set -euo pipefail
 
-PI_HOST="${PI_HOST:-pi@192.168.1.160}"
+PI_HOST="${PI_HOST:-pi@192.168.1.109}"
 PI_DEST="${PI_DEST:-/home/pi/}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
