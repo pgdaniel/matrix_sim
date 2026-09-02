@@ -1,0 +1,14 @@
+[Unit]
+Description=Matrix Display Server (simulate mode, for local dev)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/matrix_sim
+ExecStart=%h/matrix_sim/.venv/bin/python3 %h/matrix_sim/matrix_server.py --simulate --refresh-minutes 10
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

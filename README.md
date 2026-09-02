@@ -18,7 +18,9 @@ hardware or to a browser for local development.
 | `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
 | `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
 | `MatrixRainKana.ttf` | Katakana/digits/A-Z subset of Noto Sans Mono CJK JP used by `screens/matrix_rain.py` (OFL-licensed, see `MatrixRainKana-OFL.txt`) |
-| `ecosystem.config.js` | pm2 process definitions (see below) |
+| `systemd-user/*.service` | systemd `--user` unit definitions for running everything on this machine (see below) |
+| `matrix_sim.env` | `MATRIX_HOST` for the `systemd-user` audio-sender units (see below) |
+| `install-user-services.sh` | Installs/updates the `systemd-user` units for the current user and (re)starts them |
 | `systemd/matrix-server.service`, `systemd/matrix-settings.service` | systemd units for running on the Pi itself (see below) |
 | `deploy.sh` | rsyncs this project to the Pi (see below) |
 | `requirements.txt` | Python dependencies |
@@ -33,7 +35,7 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-## Running directly (no pm2)
+## Running directly (no systemd)
 
 Simulate mode (no hardware, no sudo — streams frames to a browser instead):
 
@@ -160,8 +162,8 @@ just adding another file plus one line in `main()`.
 Switch screens two ways:
 
 - **Spacebar**, if the script is running directly in a terminal (stdin is a
-  TTY). Only works this way when not managed by pm2, since pm2 detaches
-  stdin.
+  TTY). Only works this way when not managed by systemd, since a systemd
+  service has no controlling terminal.
 - **HTTP control server**, always available, on port `8787` by default
   (`--control-port`):
 
@@ -179,7 +181,7 @@ Switch screens two ways:
 
 `led-matrix-simulator.html` can be opened directly as a file, or served over
 HTTP (useful for viewing from another device) with `python -m http.server`,
-managed by pm2 as the `matrix-view` app (see below) on port `8080`.
+managed by systemd as the `matrix-view` service (see below) on port `8080`.
 
 ## Screen settings (enabled screens, auto-advance, seconds each)
 
@@ -246,46 +248,59 @@ outbound from the display to the broker; no new listening port. Needs
 `paho-mqtt` in the venv (it's in `requirements.txt`); if it's missing the
 display runs fine and just logs that MQTT control is disabled.
 
-## Running under pm2
+## Running under systemd (this machine, user-level)
 
-`ecosystem.config.js` defines six apps:
+`systemd-user/` defines six `systemd --user` units — no root, running as
+your normal login user:
 
-| app | what | port(s) |
+| unit | what | port(s) |
 |---|---|---|
 | `matrix-display` | the weather/stocks script, `--simulate` mode by default | control `8787`, matrix stream `8888` |
-| `matrix-view` | `python3 -m http.server`, serves this directory | `8080` |
+| `matrix-view` | `serve_view.py`, serves this directory | `8080` |
 | `matrix-settings` | `settings_app.py`, the screen-settings UI above | `8789` |
 | `audio-spectrum` | `audio_sender.py` → the Pi's spectrum listener | `8788` on the Pi |
 | `audio-oscope` | `audio_sender.py --port 8790` → the Pi's oscope listener | `8790` on the Pi |
 | `audio-mondrian` | `audio_sender.py --port 8791` → the Pi's Mondrian listener | `8791` on the Pi |
 
-The three `audio-*` apps capture this machine's desktop audio and stream it
+The three `audio-*` units capture this machine's desktop audio and stream it
 to the real panel on the Pi (192.168.1.109) — they're for driving the
 hardware's audio-reactive screens during local dev, and ignore
 matrix-display's `--simulate` mode. The Pi's address comes from
-`MATRIX_HOST` (interpolated into their args at `pm2 start` time), so when it
-changes you don't edit this file — re-create the senders with the new value
-(`pm2 restart` does not re-read the ecosystem file):
+`MATRIX_HOST` in `matrix_sim.env`, which each `audio-*` unit reads via
+`EnvironmentFile`. Unlike pm2's old `ecosystem.config.js`, systemd re-reads
+that file on every restart, so a change just needs:
 
 ```
-pm2 delete audio-spectrum audio-oscope audio-mondrian
-MATRIX_HOST=192.168.1.200 pm2 start ecosystem.config.js --only audio-spectrum,audio-oscope,audio-mondrian
+$EDITOR matrix_sim.env
+systemctl --user restart audio-spectrum audio-oscope audio-mondrian
 ```
 
 Run `audio_sender.py` by hand and it reads `MATRIX_HOST` itself (explicit
-host argument beats the env var). To start only the senders (when the Pi is
-the display and you don't need the local sim apps):
+host argument beats the env var).
+
+First-time setup, and after pulling changes to any file under
+`systemd-user/`:
 
 ```
-pm2 start ecosystem.config.js --only audio-spectrum,audio-oscope,audio-mondrian
+./install-user-services.sh
 ```
 
+This copies the units to `~/.config/systemd/user/`, then `enable --now`s
+all six. From there, manage them individually with plain `systemctl --user`:
+
 ```
-pm2 start ecosystem.config.js     # start all
-pm2 stop matrix-display           # stop one
-pm2 restart matrix-display
-pm2 logs matrix-display
-pm2 delete matrix-display         # remove from pm2's process list
+systemctl --user start matrix-display     # start one
+systemctl --user stop matrix-display
+systemctl --user restart matrix-display
+journalctl --user -u matrix-display -f    # logs
+systemctl --user disable --now matrix-display   # stop and remove from boot
+```
+
+To start only the senders (when the Pi is the display and you don't need
+the local sim units):
+
+```
+systemctl --user start audio-spectrum audio-oscope audio-mondrian
 ```
 
 Then open `http://<host>:8080/led-matrix-simulator.html` and connect to
@@ -298,25 +313,29 @@ curl -X POST http://<host>:8787/next-screen
 and manage enabled screens / auto-advance / seconds at
 `http://<host>:8789`.
 
-`matrix-display` handles `SIGTERM`/`SIGINT` cleanly, so `pm2 stop` /
-`pm2 restart` shut it down gracefully rather than being force-killed.
+`matrix-display` handles `SIGTERM`/`SIGINT` cleanly, so `systemctl --user
+stop`/`restart` shut it down gracefully rather than force-killing it.
 
-### Deploying to real hardware under pm2
+These units only start at login by default; to have them come up at boot
+and keep running after you log out, enable lingering once:
+`loginctl enable-linger $USER`.
 
-Edit `ecosystem.config.js`: drop `--simulate` (and `--sim-port`) from
-`matrix-display`'s `args`, and run pm2 as root, since the `rgbmatrix` driver
-needs GPIO access:
+### Driving hardware attached to this machine
 
-```
-sudo pm2 start ecosystem.config.js --only matrix-display
-```
+`systemd-user/` is unprivileged, but the `rgbmatrix` driver needs root for
+GPIO access (see `matrix_server.py`'s docstring), so it can't run
+`matrix-display` with `--simulate` dropped. For that, write a root-level
+unit instead — `systemd/matrix-server.service` (below) is exactly that
+shape, just adjust `User=`, `WorkingDirectory=`, and the paths for this
+machine instead of the Pi.
 
-## Running under systemd (Pi hardware)
+## Running under systemd (Pi hardware, system-level)
 
 On the Pi itself, `systemd/matrix-server.service` runs `matrix_server.py`
-directly on the real panel (no `--simulate`) as a boot-time service — this
-is the deployment path actually used on hardware; pm2 above is for
-dev/simulate workflows.
+directly on the real panel (no `--simulate`) as a boot-time, root-installed
+service (`/etc/systemd/system/`, `User=pi`) — this is the deployment path
+actually used on hardware. The `systemd-user/` units above are for
+dev/simulate workflows on this machine.
 
 Deploy the whole project (not just the script — `matrix_server.py` imports
 `screens/` and needs `matrix_sim.py`, `LindenHill-webfont.ttf` alongside it)
@@ -360,8 +379,9 @@ sudo systemctl disable --now weather-matrix.service
 sudo rm /etc/systemd/system/weather-matrix.service
 ```
 
-Screen switching works the same as under pm2 — the control server (port
-`8787`) is the mechanism, since systemd services don't have a TTY either.
+Screen switching works the same as under the `systemd-user` units above —
+the control server (port `8787`) is the mechanism, since systemd services
+don't have a TTY either.
 `settings_app.py` only needs network access to that port, so it can run
 from your dev machine against `CONTROL_URL=http://<pi-ip>:8787` instead of
 on the Pi itself.
@@ -394,16 +414,16 @@ separate, pre-existing issue this update doesn't address.
 
 ## Troubleshooting
 
-- **pm2 app crash-looping with `ModuleNotFoundError`**: pm2's `interpreter`
-  in `ecosystem.config.js` must point at `.venv/bin/python3`, not system
-  `python3` — the system interpreter doesn't have `click`/`requests`/
-  `pillow`/`websockets` installed.
+- **`matrix-display`/`matrix-settings` crash-looping with
+  `ModuleNotFoundError`**: their unit's `ExecStart` in `systemd-user/` must
+  point at `.venv/bin/python3`, not system `python3` — the system
+  interpreter doesn't have `click`/`requests`/`pillow`/`websockets`
+  installed.
 - **Spacebar does nothing**: only works when the script's stdin is a real
-  terminal. Under pm2 (or any headless launch), use the HTTP control server
-  instead.
+  terminal. Under systemd (or any headless launch), use the HTTP control
+  server instead.
 - **`matrix-view` logs a `KeyboardInterrupt` traceback from `socket.getfqdn`
   on restart**: that was `python -m http.server`'s blocking reverse-DNS
-  lookup on bind getting hit by pm2's stop signal mid-call — fixed by
-  `serve_view.py`, which skips that lookup. If you see this, `matrix-view`
-  isn't running the current `ecosystem.config.js`.
-  instead.
+  lookup on bind getting hit by systemd's stop signal mid-call — fixed by
+  `serve_view.py`, which skips that lookup. If you see this, `~/.config/
+  systemd/user/matrix-view.service` is stale — rerun `./install-user-services.sh`.

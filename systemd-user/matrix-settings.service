@@ -1,0 +1,14 @@
+[Unit]
+Description=Matrix Display Settings UI (enabled screens, auto-advance, seconds)
+After=network-online.target matrix-display.service
+Wants=matrix-display.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/matrix_sim
+ExecStart=%h/matrix_sim/.venv/bin/python3 %h/matrix_sim/settings_app.py --port 8789
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

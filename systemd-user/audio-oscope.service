@@ -1,0 +1,16 @@
+[Unit]
+Description=Desktop audio sender -> matrix oscilloscope screen (Pi port 8790)
+After=network-online.target pipewire-pulse.service
+Wants=network-online.target
+Requisite=pipewire-pulse.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/matrix_sim
+EnvironmentFile=-%h/matrix_sim/matrix_sim.env
+ExecStart=/usr/bin/python3 %h/matrix_sim/audio_sender.py ${MATRIX_HOST} --port 8790
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

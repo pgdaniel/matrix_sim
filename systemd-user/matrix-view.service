@@ -1,0 +1,14 @@
+[Unit]
+Description=Matrix simulator view (serves led-matrix-simulator.html)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/matrix_sim
+ExecStart=/usr/bin/python3 %h/matrix_sim/serve_view.py 8080
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
