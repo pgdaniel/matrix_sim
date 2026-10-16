@@ -221,6 +221,16 @@ script, `mosquitto_pub`). Topics are `<device>/<action>` (device defaults to
 | `display1/weather` | switch to the named screen (any screen name works, even ones disabled for auto-advance; payload ignored) |
 | `display1/next` | advance to the next enabled screen |
 | `display1/message` | set the message screen's text from the payload, then show it |
+| `display1/auto` | auto-advance: payload `on`, `off` or `toggle` (default) |
+
+The display reports its state back, retained, so a controller such as
+[deckd](../deckd-zig) can show it and light the active key:
+
+| Topic | Payload |
+|---|---|
+| `display1/state/screen` | name of the screen currently showing |
+| `display1/state/auto` | `on` / `off` (auto-advance) |
+| `display1/state/screens` | JSON list of screen names, in panel order |
 
 ```
 mosquitto_pub -h 192.168.1.10 -t display1/weather -m x
