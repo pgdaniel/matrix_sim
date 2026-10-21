@@ -2,7 +2,7 @@
 
 WIDTH = 64
 HEIGHT = 32
-FONT_PATH = "LindenHill-webfont.ttf"
+FONT_PATH = "VT323-Regular.ttf"
 
 
 class Screen:

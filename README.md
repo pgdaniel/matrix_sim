@@ -15,7 +15,6 @@ hardware or to a browser for local development.
 | `settings_app.py` | Tiny Flask UI for enabled screens / auto-advance / per-screen seconds / MQTT control settings (see below) |
 | `mqtt_control.py` | MQTT control bus — subscribes to `<device>/#` on a LAN broker and turns messages into screen switches (see "MQTT control" below) |
 | `audio_sender.py` | Runs on the computer playing the audio; captures the desktop output with `parec` and streams it as raw PCM over TCP to the spectrum, oscilloscope, or audio-reactive Mondrian screen (see below) |
-| `LindenHill-webfont.ttf` | Pixel font used by `screens/weather.py`/`screens/stocks.py` |
 | `VT323-Regular.ttf` | Retro terminal font used by the cyberpunk screens (OFL-licensed, see `VT323-OFL.txt`) |
 | `MatrixRainKana.ttf` | Katakana/digits/A-Z subset of Noto Sans Mono CJK JP used by `screens/matrix_rain.py` (OFL-licensed, see `MatrixRainKana-OFL.txt`) |
 | `systemd-user/*.service` | systemd `--user` unit definitions for running everything on this machine (see below) |
@@ -348,7 +347,7 @@ actually used on hardware. The `systemd-user/` units above are for
 dev/simulate workflows on this machine.
 
 Deploy the whole project (not just the script — `matrix_server.py` imports
-`screens/` and needs `matrix_sim.py`, `LindenHill-webfont.ttf` alongside it)
+`screens/` and needs `matrix_sim.py`, `VT323-Regular.ttf` alongside it)
 to the Pi's `WorkingDirectory` (`/home/pi` by default in the unit file) with
 `deploy.sh`:
 
