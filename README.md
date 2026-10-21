@@ -437,3 +437,8 @@ separate, pre-existing issue this update doesn't address.
   lookup on bind getting hit by systemd's stop signal mid-call — fixed by
   `serve_view.py`, which skips that lookup. If you see this, `~/.config/
   systemd/user/matrix-view.service` is stale — rerun `./install-user-services.sh`.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The bundled fonts keep their own licenses (see the
+`*-OFL.txt` files).
